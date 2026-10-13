@@ -53,7 +53,7 @@ exports.createProjects=function(root=dataPath('datos','proyectos'),onModelSaved=
    if(modelID&&req.method==='GET'){
     if(!ID.test(modelID))return json(404,{error:'Archivo no encontrado.'});
     const model=project.models.find(m=>m.id===modelID);if(!model)return json(404,{error:'Archivo no encontrado.'});
-    const file=path.join(folder(id),modelID+'.ifc'),stat=fs.statSync(file);
+    const file=path.join(folder(id),(model.revision||modelID)+'.ifc'),stat=fs.statSync(file);
     res.writeHead(200,{'Content-Type':'application/octet-stream','Content-Length':stat.size,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Disposition':`attachment; filename="modelo.ifc"; filename*=UTF-8''${encodeURIComponent(model.name)}`});
     const stream=fs.createReadStream(file);stream.on('error',()=>res.destroy());stream.pipe(res);return true;
    }
@@ -71,10 +71,16 @@ exports.createProjects=function(root=dataPath('datos','proyectos'),onModelSaved=
      const fd=fs.openSync(temp,'r'),head=Buffer.alloc(Math.min(bytes,65536));try{fs.readSync(fd,head,0,head.length,0);}finally{fs.closeSync(fd);}
      const text=head.toString('utf8');
      if(!/^\uFEFF?\s*ISO-10303-21\s*;/i.test(text)||!/FILE_SCHEMA\s*\(\s*\(\s*'IFC/i.test(text))return json(400,{error:'El archivo no tiene una cabecera IFC válida.'});
-     const current=read(id),model={id:modelId,name,size:bytes,addedAt:new Date().toISOString()};
+     const current=read(id),model={id:current.models.at(-1)?.id||modelId,revision:modelId,name,size:bytes,addedAt:new Date().toISOString()};
      if(url.searchParams.get('source')==='Revit2027'){model.source='Revit 2027';model.sourceModel=(url.searchParams.get('sourceModel')||'').replace(/[\x00-\x1f]/g,'').slice(0,180);model.scope=url.searchParams.get('scope')==='active-view'?'active-view':'document';}
      const previous=current.models;
-     fs.renameSync(temp,target);current.models=[...previous,model];current.updatedAt=model.addedAt;save(current);committed=true;
+     fs.renameSync(temp,target);current.models=[model];current.updatedAt=model.addedAt;save(current);committed=true;
+     // Metadata is committed only after the complete IFC has been validated and stored.
+     // Keep the public model ID stable; invalidate calibration for the replaced geometry.
+     for(const old of previous){
+      for(const suffix of ['.ifc','.powerbi.json']){try{fs.unlinkSync(path.join(folder(id),(old.revision||old.id)+suffix));}catch(e){if(e.code!=='ENOENT')console.error('No se pudo limpiar un archivo anterior:',e.code);}}
+      try{fs.unlinkSync(path.join(folder(id),old.id+'.reference.json'));}catch(e){if(e.code!=='ENOENT')console.error('No se pudo limpiar la referencia anterior:',e.code);}
+     }
      try{onModelSaved(id,model);}catch{}
      return json(201,{model});
     }finally{locks.delete(id);if(fs.existsSync(temp))fs.unlinkSync(temp);if(!committed&&fs.existsSync(target))fs.unlinkSync(target);}

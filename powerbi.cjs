@@ -16,18 +16,19 @@ exports.createPowerBI=function(root=dataPath('datos','proyectos')){
    try{
     let c=readConfig(id);if(!c)continue;const p=project(id),m=p.models.at(-1);
     if(!m){save(id,{...c,state:'empty',error:null});continue;}
-    if(c.revision===m.id&&fs.existsSync(path.join(folder(id),m.id+'.powerbi.json'))){save(id,{...c,state:'ready',error:null});continue;}
-    save(id,{...c,state:'processing',pendingRevision:m.id,error:null});
-    temp=path.join(folder(id),m.id+'.'+crypto.randomUUID()+'.powerbi.tmp');
+    const revision=m.revision||m.id;
+    if(c.revision===revision&&fs.existsSync(path.join(folder(id),revision+'.powerbi.json'))){save(id,{...c,state:'ready',error:null});continue;}
+    save(id,{...c,state:'processing',pendingRevision:revision,error:null});
+    temp=path.join(folder(id),revision+'.'+crypto.randomUUID()+'.powerbi.tmp');
     const result=await new Promise((resolve,reject)=>{
-     const worker=activeWorker=new Worker(path.join(__dirname,'powerbi-worker.mjs'),{workerData:{file:path.join(folder(id),m.id+'.ifc'),name:m.name,revision:m.id,output:temp},resourceLimits:{maxOldGenerationSizeMb:2048}});
+     const worker=activeWorker=new Worker(path.join(__dirname,'powerbi-worker.mjs'),{workerData:{file:path.join(folder(id),revision+'.ifc'),name:m.name,revision:revision,output:temp},resourceLimits:{maxOldGenerationSizeMb:2048}});
      const timer=setTimeout(()=>{worker.terminate();reject(Error('La preparación superó 10 minutos. Envía una vista 3D más pequeña.'));},600000);
      worker.once('message',r=>{clearTimeout(timer);worker.terminate();r.ok?resolve(r):reject(Error(r.error));});worker.once('error',e=>{clearTimeout(timer);reject(e);});worker.once('exit',code=>{clearTimeout(timer);if(code!==0)reject(Error('Se interrumpió la preparación del modelo.'));});
     });
     activeWorker=null;if(closed)continue;c=readConfig(id);if(!c)continue;
-    if(project(id).models.at(-1)?.id!==m.id){queued.add(id);continue;}
-    fs.renameSync(temp,path.join(folder(id),m.id+'.powerbi.json'));
-    save(id,{...c,state:'ready',revision:m.id,name:m.name,publishedAt:new Date().toISOString(),elements:result.elements,pendingRevision:null,error:null});
+    if((project(id).models.at(-1)?.revision||project(id).models.at(-1)?.id)!==revision){queued.add(id);continue;}
+    fs.renameSync(temp,path.join(folder(id),revision+'.powerbi.json'));
+    save(id,{...c,state:'ready',revision:revision,name:m.name,publishedAt:new Date().toISOString(),elements:result.elements,pendingRevision:null,error:null});
    }catch(e){if(!closed){const c=readConfig(id);if(c)save(id,{...c,state:'error',error:e.message});}}
    finally{if(temp&&fs.existsSync(temp))fs.unlinkSync(temp);}
   }}finally{running=false;}
@@ -52,7 +53,7 @@ exports.createPowerBI=function(root=dataPath('datos','proyectos')){
    if(!match[3])return json(res,200,{...summary(c),projectId:id,projectName:project(id).name});
    const revision=url.searchParams.get('revision')||c.revision;
    if(!revision)return json(res,409,{error:c.error||'El modelo todavía se está preparando.'});
-   if(!ID.test(revision)||(revision!==c.revision&&!project(id).models.some(m=>m.id===revision)))return json(res,404,{error:'Versión no disponible.'});
+   if(!ID.test(revision)||(revision!==c.revision&&!project(id).models.some(m=>(m.revision||m.id)===revision)))return json(res,404,{error:'Versión no disponible.'});
    const file=path.join(folder(id),revision+'.powerbi.json');if(!fs.existsSync(file))return json(res,409,{error:'La versión todavía no está preparada.'});
    res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Content-Length':fs.statSync(file).size,'X-Content-Type-Options':'nosniff'});const stream=fs.createReadStream(file);stream.on('error',()=>res.destroy());stream.pipe(res);return true;
   },
