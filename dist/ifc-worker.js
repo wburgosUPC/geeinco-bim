@@ -1,4 +1,4 @@
-import { IfcAPI, IFCRELDEFINESBYPROPERTIES } from './vendor/web-ifc-api.js';
+import { IfcAPI, IFCRELDEFINESBYPROPERTIES, IFCRELDEFINESBYTYPE } from './vendor/web-ifc-api.js';
 const api = new IfcAPI();
 api.SetWasmPath(new URL('./vendor/', import.meta.url).href, true);
 let model = null;
@@ -42,6 +42,32 @@ self.onmessage = async ({data}) => {
         nameContainers(spatial);
       } catch {}
       self.postMessage({kind:'ready',elements,spatial,schema:api.GetModelSchema(model)});
+      // Build the small text-filter index in the worker, once per file.
+      try {
+        const index=new Map(elements.map(e=>[e.id,{id:e.id,module:[],block:[]}])) ,cache=new Map();
+        const norm=s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ');
+        function readSet(id){
+          if(cache.has(id))return cache.get(id);
+          const result={module:[],block:[]},set=api.GetLine(model,id,true);
+          for(const p of set.HasProperties||[]){
+            const name=norm(value(p.Name)||'');
+            const key=/\b(modulo|modulos|module)\b/.test(name)?'module':/\b(bloque|bloques|block)\b/.test(name)?'block':null;
+            if(!key)continue;
+            const raw=p.NominalValue??p.ListValues??p.EnumerationValues;
+            for(const item of [].concat(raw??[])){const v=value(item);if(typeof v==='string'||typeof v==='number'){const text=String(v).trim();if(text)result[key].push(text);}}
+          }
+          cache.set(id,result);return result;
+        }
+        function apply(objects,setIds,replace){for(const ref of objects||[]){const entry=index.get(value(ref));if(!entry)continue;const found={module:[],block:[]};for(const id of setIds){try{const p=readSet(id);for(const key of ['module','block'])found[key].push(...p[key]);}catch{}}
+          for(const key of ['module','block'])if(found[key].length)entry[key]=[...new Set(replace?found[key]:[...entry[key],...found[key]])];}}
+        const types=api.GetLineIDsWithType(model,IFCRELDEFINESBYTYPE);
+        for(let i=0;i<types.size();i++){const rel=api.GetLine(model,types.get(i),false),type=api.GetLine(model,value(rel.RelatingType),false);apply(rel.RelatedObjects,(type.HasPropertySets||[]).map(value),false);}
+        const rels=api.GetLineIDsWithType(model,IFCRELDEFINESBYPROPERTIES),byObject=new Map();
+        for(let i=0;i<rels.size();i++){const rel=api.GetLine(model,rels.get(i),false),id=value(rel.RelatingPropertyDefinition);if(typeof id!=='number')continue;for(const ref of rel.RelatedObjects||[]){const oid=value(ref);if(!byObject.has(oid))byObject.set(oid,[]);byObject.get(oid).push(id);}}
+        for(const [id,sets]of byObject)apply([id],sets,true);
+        self.postMessage({kind:'filter-index',entries:[...index.values()]});
+      }catch(error){self.postMessage({kind:'filter-index-error',message:error.message});}
+
     } else if (data.action === 'export' && model !== null) {
       const relations=new Map(),sets=new Map();
       const relIDs=api.GetLineIDsWithType(model,IFCRELDEFINESBYPROPERTIES);

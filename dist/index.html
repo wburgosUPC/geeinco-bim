@@ -20,6 +20,15 @@
   <aside class="left" id="model-panel">
     <div class="panel-title"><h1>Modelo</h1><span id="count" class="count">0</span></div>
     <label class="search"><span>⌕</span><input id="search" placeholder="Buscar nombre, tipo o ID" aria-label="Buscar elementos" disabled></label>
+    <div class="text-filters" aria-label="Filtros por parámetros">
+      <label>Módulo<input id="filter-module" placeholder="Ej.: Módulo 01" list="module-values" disabled></label>
+      <datalist id="module-values"></datalist>
+      <label>Bloque<input id="filter-block" placeholder="Ej.: Bloque A" list="block-values" disabled></label>
+      <datalist id="block-values"></datalist>
+      <label>Tipo IFC<input id="filter-type" placeholder="Ej.: IFCWALL" data-model disabled></label>
+      <button id="filter-clear" data-model disabled>Limpiar filtros</button>
+      <small id="filter-state" role="status">Abre un IFC para filtrar.</small>
+    </div>
     <div id="tree" class="tree"><p class="muted">Los niveles y elementos aparecerán aquí al abrir un archivo.</p></div>
     <div class="privacy"><strong>Proyecto en la nube</strong><span>Los modelos del proyecto se guardan en tu servidor. Cada envío desde Revit crea una entrega.</span></div>
   </aside>

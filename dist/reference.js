@@ -1,24 +1,30 @@
 import * as THREE from 'three';
 import {QRCode} from './qr-code.js';
 import {validateReference,referenceInverse,wallMatrix} from './reference-math.js';
-export function installReference({renderer,camera,controls,modelGroup,isReady,status,redraw}){
+export function installReference({renderer,camera,controls,modelGroup,isReady,getReference,status,redraw}){
  const params=new URLSearchParams(location.search),project=params.get('project'),model=params.get('model');
  const endpoint=`/api/projects/${project}/models/${model}/reference`;
- let config=null,picking=0,pointA=null;
+ let config=null;
  const nav=document.querySelector('.viewer-panels');
  const setup=document.createElement('button');setup.textContent='Referencia QR';setup.id='reference-setup';nav.append(setup);
  const dialog=document.createElement('dialog');dialog.className='reference-dialog';
- dialog.innerHTML='<h2>AR-01 · Referencia en muro</h2><p>Fija la placa vertical, plana, con la flecha hacia arriba. A es el centro del cuadrado impreso. B es un punto conocido a su derecha, a la misma altura.</p><p id="ref-state" role="status"></p><div class="ref-buttons"><button id="ref-pick">Elegir A y B en el modelo</button><button id="ref-print">Imprimir placa</button><button id="ref-auto">AR con placa · experimental</button><button id="ref-manual">AR por dos puntos</button><button id="ref-close">Cerrar</button></div><p>El cuadrado debe medir exactamente 20 × 20 cm. La referencia solo corresponde a esta entrega IFC. Comprueba la alineación en otro punto de obra.</p>';
+ dialog.innerHTML='<h2>AR-01 · Referencia en muro</h2><p>Fija la placa vertical, plana, con la flecha hacia arriba. La posición se lee de la familia INCOAC_Marca_AR_Muro_v2 exportada desde Revit. Coloca la placa impresa en ese mismo lugar, con la flecha hacia arriba.</p><p id="ref-state" role="status"></p><div class="ref-buttons"><button id="ref-read">Vincular familia de Revit</button><button id="ref-print">Imprimir placa</button><button id="ref-auto">AR con placa · experimental</button><button id="ref-manual">AR por dos puntos</button><button id="ref-close">Cerrar</button></div><p>El cuadrado debe medir exactamente 20 × 20 cm. La referencia solo corresponde a esta entrega IFC. Comprueba la alineación en otro punto de obra.</p>';
  document.body.append(dialog);const el=id=>document.getElementById(id);
  const say=t=>el('ref-state').textContent=t;
- async function load(){if(!project||!model)throw Error('Abre una entrega guardada en Proyectos.');const r=await fetch(endpoint);const data=await r.json();if(!r.ok)throw Error(data.error);config=data.reference?validateReference(data.reference):null;say(config?'Referencia guardada. Distancia A–B: '+new THREE.Vector3(...config.a).distanceTo(new THREE.Vector3(...config.b)).toFixed(3)+' m.':'Pendiente: selecciona A y B antes de imprimir.');for(const id of ['ref-print','ref-auto','ref-manual'])el(id).disabled=!config;}
- setup.onclick=async()=>{dialog.showModal();try{await load();}catch(e){say(e.message);for(const id of ['ref-print','ref-auto','ref-manual'])el(id).disabled=true;}};
+ function enable(value){for(const id of ['ref-print','ref-auto','ref-manual'])el(id).disabled=!value;}
+ async function load(){
+  config=null;enable(false);
+  if(!project||!model||!isReady())throw Error('Espera a que termine de cargar la entrega IFC guardada.');
+  const candidate=validateReference(getReference());
+  const r=await fetch(endpoint,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(candidate)});
+  const data=await r.json();if(!r.ok)throw Error(data.error||'No se pudo guardar la vinculación.');
+  config=candidate;enable(true);say('Familia de Revit vinculada · elemento IFC '+candidate.elementId+'. Escanea el QR, abre AR con placa y enfoca la placa completa.');
+ }
+ async function refresh(){try{await load();}catch(e){config=null;enable(false);say(e.message);}}
+ setup.onclick=()=>{dialog.showModal();refresh();};
  el('ref-close').onclick=()=>dialog.close();
- el('ref-pick').onclick=()=>{if(!isReady()){say('Abre la entrega guardada desde Proyectos y espera a que termine de cargar.');return;}picking=1;dialog.close();status('Referencia: pulsa el centro A de la placa en el muro del modelo. Escape para cancelar.');};
- window.addEventListener('keydown',e=>{if(e.key==='Escape'){picking=0;status('Selección de referencia cancelada.');}});
- const dots=new THREE.Group();modelGroup.parent.add(dots);
- function showPoints(){for(const o of [...dots.children]){o.geometry.dispose();o.material.dispose();dots.remove(o);}if(config)for(const p of [config.a,config.b]){const dot=new THREE.Mesh(new THREE.SphereGeometry(.07,12,8),new THREE.MeshBasicMaterial({color:0xe0b74f,depthTest:false}));dot.position.fromArray(p);dot.renderOrder=99;dots.add(dot);}redraw();}
- async function pick(point){if(!picking)return false;if(picking===1){pointA=point.clone();picking=2;status('Referencia: pulsa B a la derecha de A, a la misma altura.');return true;}picking=0;try{const candidate=validateReference({version:1,mount:'wall',width:0.2,a:pointA.toArray(),b:point.toArray()});const r=await fetch(endpoint,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(candidate)});const d=await r.json();if(!r.ok)throw Error(d.error);config=candidate;showPoints();dialog.showModal();await load();}catch(e){status(e.message);}return true;}
+ el('ref-read').onclick=refresh;
+ enable(false);
  function plate(){
   const url=new URL('/index.html',location.origin);url.searchParams.set('project',project);url.searchParams.set('model',model);url.searchParams.set('ar','reference');
   const qr=new QRCode(-1,1);qr.addData(url.href);qr.make();const n=qr.getModuleCount();
@@ -29,7 +35,7 @@ export function installReference({renderer,camera,controls,modelGroup,isReady,st
   const size=Math.floor(700/(n+8)),origin=Math.floor((1000-(n+8)*size)/2);g.fillStyle='white';g.fillRect(origin,origin,(n+8)*size,(n+8)*size);g.fillStyle='black';for(let r=0;r<n;r++)for(let k=0;k<n;k++)if(qr.isDark(r,k))g.fillRect(origin+(k+4)*size,origin+(r+4)*size,size,size);
   g.font='24px sans-serif';g.fillText('20 × 20 cm · Centro = punto A',260,940);g.font='20px sans-serif';g.fillText(model.slice(0,8),440,976);return c;
  }
- el('ref-print').onclick=()=>{const c=plate();let print=document.getElementById('reference-print');if(!print){print=document.createElement('section');print.id='reference-print';document.body.append(print);}print.replaceChildren();const title=document.createElement('h2');title.textContent='AR-01 · Placa vertical de muro';const img=new Image();img.src=c.toDataURL();const note=document.createElement('p');note.textContent='Imprimir al 100%, sin ajustar. Verificar cuadrado de 200 × 200 mm. Colocar centro en A; borde derecho hacia B. A–B: '+new THREE.Vector3(...config.a).distanceTo(new THREE.Vector3(...config.b)).toFixed(3)+' m. Entrega '+model;print.append(title,img,note);img.onload=()=>{dialog.close();window.print();};};
+ el('ref-print').onclick=()=>{const c=plate();let print=document.getElementById('reference-print');if(!print){print=document.createElement('section');print.id='reference-print';document.body.append(print);}print.replaceChildren();const title=document.createElement('h2');title.textContent='AR-01 · Placa vertical de muro';const img=new Image();img.src=c.toDataURL();const note=document.createElement('p');note.textContent='Imprimir al 100%, sin ajustar. Verificar cuadrado de 200 × 200 mm. Colocar sobre la familia de Revit, a su misma altura y orientación. Para alternativa manual, B está a la derecha del centro, a '+new THREE.Vector3(...config.a).distanceTo(new THREE.Vector3(...config.b)).toFixed(3)+' m. Entrega '+model;print.append(title,img,note);img.onload=()=>{dialog.close();window.print();};};
  let xr=null,starting=false,hit=null,space=null,aReal=null,snapshot=null;
  const overlay=document.createElement('section');overlay.id='reference-overlay';overlay.hidden=true;overlay.innerHTML='<div class="ar-heading"><strong>AR-01 · Muro · 1:1</strong><button id="ref-exit">Salir</button></div><p id="ref-message" role="status"></p><div class="ar-actions"><button id="ref-place" disabled>Fijar A</button><button id="ref-reset">Realinear</button></div><p class="ar-note">Revisión visual. Verifica otro punto conocido. No usar para replanteo.</p>';document.body.append(overlay);
  const scene=new THREE.Scene();scene.add(new THREE.HemisphereLight(0xffffff,0x71869c,3));const anchor=new THREE.Group();anchor.matrixAutoUpdate=false;anchor.visible=false;scene.add(anchor);
@@ -45,5 +51,5 @@ export function installReference({renderer,camera,controls,modelGroup,isReady,st
  }catch(e){if(xr)try{await xr.end();}catch{cleanup();}else cleanup();dialog.showModal();say('No se pudo iniciar '+(auto?'el reconocimiento automático':'AR')+': '+e.message+(auto?' Prueba «AR por dos puntos».':''));}}
  el('ref-auto').onclick=()=>start(true);el('ref-manual').onclick=()=>start(false);
  if(params.get('ar')==='reference')setup.click();
- return {pick,isPicking:()=>picking>0};
+ return {pick:()=>false,isPicking:()=>false,modelReady:()=>{config=null;enable(false);if(dialog.open)refresh();}};
 }

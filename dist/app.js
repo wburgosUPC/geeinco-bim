@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { installAR } from './ar.js';
 import { installReference } from './reference.js';
+import {referenceFromRevit} from './revit-reference.js';
 import { OrbitControls } from './vendor/OrbitControls.js';
 import { createModelPackage } from './powerbi-export.js';
 
@@ -63,6 +64,9 @@ function resetModel() {
   $('cut').setAttribute('aria-pressed','false');$('measure').setAttribute('aria-pressed','false');
   $('cut-panel').hidden=true;$('measure-panel').hidden=true;
   document.querySelectorAll('[data-model]').forEach(b=>b.disabled=true);
+  for(const id of ['filter-module','filter-block','filter-type']){$(id).value='';$(id).disabled=true;}
+  $('filter-state').textContent='Leyendo parámetros de módulo y bloque…';
+  $('module-values').replaceChildren();$('block-values').replaceChildren();
   $('search').value='';$('search').disabled=true;$('tree').replaceChildren();$('count').textContent='0';
   grid.visible=true;
 }
@@ -99,6 +103,18 @@ async function openFile(file,fromSaved=false) {
     worker=new Worker(new URL('./ifc-worker.js',import.meta.url),{type:'module'});
     worker.onerror=()=>fail('No se pudo iniciar el lector IFC. Vuelve a abrir el visor con “Abrir visor.cmd”.');
     worker.onmessage=({data})=>{
+      if(data.kind==='filter-index'){
+        for(const entry of data.entries){const e=elements.get(entry.id);if(e){e.module=entry.module;e.block=entry.block;}}
+        const missing=[];
+        for(const key of ['module','block']){const values=[...new Set(data.entries.flatMap(e=>e[key]))].sort((a,b)=>a.localeCompare(b));
+          $('filter-'+key).disabled=!values.length;$ (key+'-values').replaceChildren();
+          for(const value of values){const option=document.createElement('option');option.value=value;$(key+'-values').append(option);}
+          if(!values.length)missing.push(key==='module'?'Módulo':'Bloque');
+        }
+        $('filter-state').dataset.coverage=missing.length?'Sin parámetro exportado: '+missing.join(', '):'Parámetros de Revit disponibles.';
+        applyTextFilters();
+      }
+      if(data.kind==='filter-index-error'){$('filter-state').textContent='No se pudo leer Módulo/Bloque. La búsqueda general sigue disponible.';}
       if(data.kind==='mesh')addMesh(data);
       if(data.kind==='ready')finishLoad(data);
       if(data.kind==='properties' && data.id===selected && data.request===request)showProperties(data);
@@ -137,6 +153,7 @@ function finishLoad(data) {
   const size=box.getSize(new THREE.Vector3());const extent=Math.max(size.x,size.y,size.z,1);
   grid=new THREE.GridHelper(extent*2,30,0xbccadb,0xd9e1eb);grid.position.y=box.min.y-.015*extent;scene.add(grid);
   drawTree();fitBox(box);
+  referenceUI.modelReady();
   status(`${data.schema} · ${elements.size.toLocaleString('es-PE')} elementos · Selecciona un elemento para ver sus propiedades`);
 }
 function fitBox(bounds,top=false){
@@ -159,9 +176,8 @@ function elementButton(element){
 }
 function drawTree(){
   const tree=$('tree');tree.replaceChildren();
-  const query=$('search').value.toLowerCase().trim();
-  if(query){
-    const matches=[...elements.values()].filter(e=>`${e.name} ${e.type} ${e.id}`.toLowerCase().includes(query));
+  if(hasTextFilters()){
+    const matches=[...elements.values()].filter(matchesTextFilters);
     for(const e of matches.slice(0,400))tree.append(elementButton(e));
     if(!matches.length)tree.textContent='No se encontraron elementos.';
     if(matches.length>400){const p=document.createElement('p');p.textContent=`Mostrando 400 de ${matches.length}. Afina la búsqueda.`;tree.append(p);}return;
@@ -257,9 +273,25 @@ $('open').onclick=$('empty-open').onclick=()=>$('file').click();
 $('file').onchange=e=>{openFile(e.target.files[0]);e.target.value='';};
 $('demo').onclick=async()=>{try{const r=await fetch('./ejemplo.ifc');if(!r.ok)throw Error();openFile(new File([await r.arrayBuffer()],'Ejemplo · pabellón.ifc'));}catch{status('No se pudo abrir el ejemplo.');}};
 $('fit').onclick=()=>fitBox(box);$('top').onclick=()=>fitBox(box,true);
-let searchTimer;$('search').oninput=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(drawTree,160);};
+const normalizeText=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+const filterIds=['search','filter-module','filter-block','filter-type'];
+function hasTextFilters(){return filterIds.some(id=>$(id).value.trim());}
+function matchesTextFilters(e){
+ return normalizeText(`${e.name} ${e.type} ${e.id}`).includes(normalizeText($('search').value))
+ && normalizeText(e.type).includes(normalizeText($('filter-type').value))
+ && ['module','block'].every(key=>!$( 'filter-'+key).value.trim()||(e[key]||[]).some(v=>normalizeText(v).includes(normalizeText($('filter-'+key).value))));
+}
+function applyTextFilters(){
+ let count=0;for(const [id,e] of elements){const show=matchesTextFilters(e);if(show)count++;for(const mesh of objects.get(id)||[])mesh.visible=show;}
+ if(selected!==null&&!matchesTextFilters(elements.get(selected)))clearSelection();
+ $('filter-state').textContent=count.toLocaleString('es-PE')+' de '+elements.size.toLocaleString('es-PE')+' elementos. '+($('filter-state').dataset.coverage||'Leyendo módulos y bloques…');
+ drawTree();requestRender();
+}
+function clearTextFilters(){for(const id of filterIds)$(id).value='';applyTextFilters();}
+let searchTimer;for(const id of filterIds)$(id).oninput=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(applyTextFilters,160);};
+$('filter-clear').onclick=clearTextFilters;
 $('powerbi').onclick=()=>{if(!loaded||loading)return;loading=true;$('powerbi').disabled=true;$('open').disabled=true;$('busy-text').textContent='Preparando el modelo completo para Power BI…';$('busy').hidden=false;worker.postMessage({action:'export',ids:[...elements.keys()]});};
-$('restore').onclick=()=>{for(const meshes of objects.values())for(const m of meshes)m.visible=true;requestRender();status('Todos los elementos están visibles.');};
+$('restore').onclick=()=>{clearTextFilters();status('Filtros limpiados. Todos los elementos están visibles.');};
 $('isolate').onclick=()=>{if(selected===null)return;for(const [id,meshes]of objects)for(const m of meshes)m.visible=id===selected;requestRender();status('Elemento aislado. Usa “Mostrar todo” para restaurar el modelo.');};
 $('hide').onclick=()=>{for(const m of objects.get(selected)||[])m.visible=false;clearSelection();status('Elemento oculto. Usa “Mostrar todo” para restaurarlo.');};
 $('focus').onclick=()=>{const bounds=new THREE.Box3();for(const mesh of objects.get(selected)||[])bounds.expandByObject(mesh);fitBox(bounds);};
@@ -292,4 +324,13 @@ openSavedModel();
 installAR({renderer,camera,controls,modelGroup,isReady:()=>loaded&&!loading,status,redraw:resize});
 
 
-const referenceUI=installReference({renderer,camera,controls,modelGroup,isReady:()=>loaded&&!loading&&savedModelActive,status,redraw:resize});
+const referenceUI=installReference({renderer,camera,controls,modelGroup,isReady:()=>loaded&&!loading&&savedModelActive,getReference:()=>referenceFromRevit(elements,objects),status,redraw:resize});
+const speed=document.createElement('select');
+speed.setAttribute('aria-label','Velocidad de navegación');
+speed.title='Velocidad de giro, desplazamiento y zoom; no cambia la escala del modelo';
+for(const [value,label] of [['1','Movimiento normal'],['2','Movimiento rápido'],['.5','Movimiento preciso']]){
+  const option=document.createElement('option');option.value=value;option.textContent=label;speed.append(option);
+}
+try{const saved=localStorage.getItem('visor.navigation.speed');if(['1','2','.5'].includes(saved))speed.value=saved;}catch{}
+speed.onchange=()=>{const value=Number(speed.value);controls.panSpeed=value;controls.rotateSpeed=value;controls.zoomSpeed=value;try{localStorage.setItem('visor.navigation.speed',speed.value);}catch{}};
+speed.onchange();document.querySelector('.viewer-panels').append(speed);
