@@ -28,7 +28,7 @@ export function installReference({renderer,camera,controls,modelGroup,isReady,ge
  function plate(){
   const url=new URL('/index.html',location.origin);url.searchParams.set('project',project);url.searchParams.set('model',model);url.searchParams.set('ar','reference');
   const qr=new QRCode(-1,1);qr.addData(url.href);qr.make();const n=qr.getModuleCount();
-  const c=document.createElement('canvas');c.width=c.height=1000;const g=c.getContext('2d');g.fillStyle='white';g.fillRect(0,0,1000,1000);g.fillStyle='#122d43';g.fillRect(0,0,1000,90);g.fillStyle='white';g.font='bold 42px sans-serif';g.fillText('INCOAC · AR-01',32,60);g.fillText('↑ ARRIBA',700,60);
+  const c=document.createElement('canvas');c.width=c.height=1000;const g=c.getContext('2d');g.fillStyle='white';g.fillRect(0,0,1000,1000);g.fillStyle='#122d43';g.fillRect(0,0,1000,90);g.fillStyle='white';g.font='bold 42px sans-serif';g.fillText('GEEINCO · AR-01',32,60);g.fillText('↑ ARRIBA',700,60);
   // Distinct asymmetric features around the QR improve image recognition.
   let seed=Number.parseInt(model.replace(/-/g,'').slice(0,8),16)>>>0;
   for(let i=0;i<95;i++){seed=(Math.imul(seed,1664525)+1013904223)>>>0;const x=20+seed%960;seed=(Math.imul(seed,1664525)+1013904223)>>>0;const y=110+seed%780;if(x>130&&x<870&&y>140&&y<870)continue;g.fillStyle=i%3?'#122d43':'#b78227';g.beginPath();g.arc(x,y,7+seed%18,0,Math.PI*2);g.fill();}

@@ -64,9 +64,9 @@ function resetModel() {
   $('cut').setAttribute('aria-pressed','false');$('measure').setAttribute('aria-pressed','false');
   $('cut-panel').hidden=true;$('measure-panel').hidden=true;
   document.querySelectorAll('[data-model]').forEach(b=>b.disabled=true);
-  for(const id of ['filter-module','filter-block','filter-type']){$(id).value='';$(id).disabled=true;}
-  $('filter-state').textContent='Leyendo parámetros de módulo y bloque…';
-  $('module-values').replaceChildren();$('block-values').replaceChildren();
+  for(const id of ['filter-module','filter-block','filter-discipline','filter-type']){$(id).value='';$(id).disabled=true;}
+  $('filter-state').textContent='Leyendo parámetros de módulo, bloque y disciplina…';
+  $('module-values').replaceChildren();$('block-values').replaceChildren();$('discipline-values').replaceChildren();
   $('search').value='';$('search').disabled=true;$('tree').replaceChildren();$('count').textContent='0';
   grid.visible=true;
 }
@@ -104,17 +104,17 @@ async function openFile(file,fromSaved=false) {
     worker.onerror=()=>fail('No se pudo iniciar el lector IFC. Vuelve a abrir el visor con “Abrir visor.cmd”.');
     worker.onmessage=({data})=>{
       if(data.kind==='filter-index'){
-        for(const entry of data.entries){const e=elements.get(entry.id);if(e){e.module=entry.module;e.block=entry.block;}}
+        for(const entry of data.entries){const e=elements.get(entry.id);if(e){e.module=entry.module;e.block=entry.block;e.discipline=entry.discipline;}}
         const missing=[];
-        for(const key of ['module','block']){const values=[...new Set(data.entries.flatMap(e=>e[key]))].sort((a,b)=>a.localeCompare(b));
+        for(const key of ['module','block','discipline']){const values=[...new Set(data.entries.flatMap(e=>e[key]))].sort((a,b)=>a.localeCompare(b));
           $('filter-'+key).disabled=!values.length;$ (key+'-values').replaceChildren();
           for(const value of values){const option=document.createElement('option');option.value=value;$(key+'-values').append(option);}
-          if(!values.length)missing.push(key==='module'?'Módulo':'Bloque');
+          if(!values.length)missing.push(({module:'Módulo',block:'Bloque',discipline:'Disciplina'})[key]);
         }
         $('filter-state').dataset.coverage=missing.length?'Sin parámetro exportado: '+missing.join(', '):'Parámetros de Revit disponibles.';
         applyTextFilters();
       }
-      if(data.kind==='filter-index-error'){$('filter-state').textContent='No se pudo leer Módulo/Bloque. La búsqueda general sigue disponible.';}
+      if(data.kind==='filter-index-error'){$('filter-state').textContent='No se pudo leer Módulo/Bloque/Disciplina. La búsqueda general sigue disponible.';}
       if(data.kind==='mesh')addMesh(data);
       if(data.kind==='ready')finishLoad(data);
       if(data.kind==='properties' && data.id===selected && data.request===request)showProperties(data);
@@ -274,17 +274,17 @@ $('file').onchange=e=>{openFile(e.target.files[0]);e.target.value='';};
 $('demo').onclick=async()=>{try{const r=await fetch('./ejemplo.ifc');if(!r.ok)throw Error();openFile(new File([await r.arrayBuffer()],'Ejemplo · pabellón.ifc'));}catch{status('No se pudo abrir el ejemplo.');}};
 $('fit').onclick=()=>fitBox(box);$('top').onclick=()=>fitBox(box,true);
 const normalizeText=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
-const filterIds=['search','filter-module','filter-block','filter-type'];
+const filterIds=['search','filter-module','filter-block','filter-discipline','filter-type'];
 function hasTextFilters(){return filterIds.some(id=>$(id).value.trim());}
 function matchesTextFilters(e){
  return normalizeText(`${e.name} ${e.type} ${e.id}`).includes(normalizeText($('search').value))
  && normalizeText(e.type).includes(normalizeText($('filter-type').value))
- && ['module','block'].every(key=>!$( 'filter-'+key).value.trim()||(e[key]||[]).some(v=>normalizeText(v).includes(normalizeText($('filter-'+key).value))));
+ && ['module','block','discipline'].every(key=>!$( 'filter-'+key).value.trim()||(e[key]||[]).some(v=>normalizeText(v).includes(normalizeText($('filter-'+key).value))));
 }
 function applyTextFilters(){
  let count=0;for(const [id,e] of elements){const show=matchesTextFilters(e);if(show)count++;for(const mesh of objects.get(id)||[])mesh.visible=show;}
  if(selected!==null&&!matchesTextFilters(elements.get(selected)))clearSelection();
- $('filter-state').textContent=count.toLocaleString('es-PE')+' de '+elements.size.toLocaleString('es-PE')+' elementos. '+($('filter-state').dataset.coverage||'Leyendo módulos y bloques…');
+ $('filter-state').textContent=count.toLocaleString('es-PE')+' de '+elements.size.toLocaleString('es-PE')+' elementos. '+($('filter-state').dataset.coverage||'Leyendo módulos, bloques y disciplinas…');
  drawTree();requestRender();
 }
 function clearTextFilters(){for(const id of filterIds)$(id).value='';applyTextFilters();}
