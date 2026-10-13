@@ -1,0 +1,50 @@
+VISOR IFC ANDROID - GALAXY Z FOLD7
+
+Estado: paquete preparado para servidor HTTPS. Aun no publicado.
+No contiene cuentas, contrasenas ni modelos de tus proyectos.
+
+ALOJAMIENTO PROPUESTO
+Render Web Service con Docker y disco persistente de pago. Su direccion
+onrender.com incluye HTTPS, por lo que no necesitas comprar un dominio
+para la primera version. El plan se elige despues de probar el IFC real.
+Punto de partida orientativo: 4 GB de RAM; no es una garantia para modelos
+grandes. Almacenamiento segun tamano de IFC y numero de revisiones.
+Documentacion: https://render.com/docs/web-services
+Discos: https://render.com/docs/disks
+
+CONFIGURACION DEL SERVICIO (no ejecutada)
+1. Subir esta carpeta a un repositorio privado y crear el servicio Docker.
+2. Adjuntar un disco persistente en /var/data.
+3. Configurar variables en el panel del proveedor:
+   En Render NO agregar VISOR_PUBLIC_ORIGIN: se usa RENDER_EXTERNAL_URL automaticamente.
+   VISOR_DATA_DIR=/var/data
+   VISOR_ADMIN_USER=tu usuario
+   VISOR_ADMIN_PASSWORD=contrasena de al menos 12 caracteres (secreto)
+   PORT=10000
+4. Desplegar. El primer arranque crea la cuenta en el disco persistente.
+   Luego eliminar VISOR_ADMIN_PASSWORD del panel y volver a desplegar.
+   No incluir secretos en archivos del repositorio.
+5. Abrir el enlace HTTPS en Chrome en el Fold7 e iniciar sesion.
+6. Crear un proyecto y cargar un IFC desde el navegador del computador.
+7. En el telefono: Comprobar AR, abrir el modelo, Ver en AR, permitir
+   la sesion, apuntar al suelo y pulsar Colocar aqui al ver el aro.
+8. Probar giro, escalas, Reubicar y Salir. Repetir con datos moviles.
+
+ACTUALIZAR EL MODELO
+Esta primera version recibe IFC mediante el navegador. El complemento
+actual de Revit sigue conectado al visor local y no sincroniza con esta
+version automaticamente. Exporta el IFC y usa Actualizar modelo en el
+proyecto del servidor. La conexion directa Revit-nube queda pendiente.
+
+LIMITES
+Una sola cuenta compartida; sin roles por usuario o por proyecto.
+La ubicacion AR es manual, no es un replanteo topografico.
+Sin anclajes persistentes ni modo sin conexion.
+No se ha probado en un telefono fisico ni desplegado en Render.
+No se han verificado enlaces Power BI remotos en Power BI Desktop.
+El propietario debe configurar copias de seguridad del disco.
+
+PRUEBAS LOCALES
+Autenticacion, cookies Secure, origen permitido, rechazo de origen
+ajeno, proyectos privados y persistencia verificados con cuenta temporal.
+TLS y funcionamiento del contenedor requieren validacion en alojamiento.
