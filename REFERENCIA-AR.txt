@@ -1,0 +1,29 @@
+PLACA AR-01 EN MURO
+
+Abra una entrega IFC guardada. Pulse Referencia QR > Elegir A y B.
+A: centro fisico de la futura placa sobre el muro.
+B: punto conocido hacia la derecha, a la misma altura y separado al menos
+20 cm. Marque ambos en obra. El visor muestra su distancia en metros.
+Las coordenadas se registran en el sistema del visor, no son coordenadas
+topograficas. La placa se coloca vertical, no inclinada, flecha arriba.
+
+Una vez guardada la referencia, pulse Imprimir placa. Imprima al 100%,
+sin ajustar y mida el cuadrado: debe ser exactamente 200 x 200 mm.
+El QR abre la entrega exacta y exige iniciar sesion; no incluye claves.
+Cada nuevo IFC necesita su propia referencia y placa.
+
+AR CON PLACA: usa WebXR image-tracking experimental, si el navegador lo
+soporta. Mantenga la placa visible. Si pierde el seguimiento, el modelo
+se oculta. No esta validado en el Fold7 fisico. No activar configuraciones
+experimentales del navegador como requisito de produccion.
+
+AR POR DOS PUNTOS: alternativa manual con hit-test. Apunte a A y pulse
+Fijar A; despues a B y pulse Fijar B. La distancia se contrasta con el
+modelo, sin cambiar la escala 1:1. El muro debe ser detectable por ARCore.
+Si no detecta el muro, salga y pruebe mejor luz/textura o cambie referencia.
+
+Compruebe siempre un tercer punto. No usar para replanteo ni medir
+tolerancias. La compatibilidad y deriva se deben medir en obra.
+
+PANELES: Modelo y Propiedades los ocultan/muestran. Se recuerda la
+preferencia en este navegador. En movil se ocultan inicialmente.

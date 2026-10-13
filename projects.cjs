@@ -31,6 +31,21 @@ exports.createProjects=function(root=dataPath('datos','proyectos'),onModelSaved=
     }
     return json(405,{error:'Método no permitido.'});
    }
+   const refMatch=url.pathname.match(/^\/api\/projects\/([^/]+)\/models\/([^/]+)\/reference$/);
+   if(refMatch){
+    const [,pid,mid]=refMatch;if(!ID.test(pid)||!ID.test(mid))return json(404,{error:'Entrega no encontrada.'});
+    const p=read(pid);if(!p.models.some(m=>m.id===mid))return json(404,{error:'Entrega no encontrada. Abre el modelo vigente.'});
+    const target=path.join(folder(pid),mid+'.reference.json');
+    if(req.method==='GET')return json(200,{reference:fs.existsSync(target)?JSON.parse(fs.readFileSync(target,'utf8')):null});
+    if(req.method==='PUT'){
+     if(!req.headers['content-type']?.startsWith('application/json'))return json(415,{error:'Formato inválido.'});
+     const c=await body(req),valid=v=>Array.isArray(v)&&v.length===3&&v.every(n=>typeof n==='number'&&Number.isFinite(n)&&Math.abs(n)<1e7);
+     if(c.version!==1||c.mount!=='wall'||c.width!==0.2||!valid(c.a)||!valid(c.b)||Math.hypot(...c.a.map((n,i)=>n-c.b[i]))<0.2||Math.abs(c.a[1]-c.b[1])>0.05)return json(400,{error:'A y B deben estar a la misma altura, separados al menos 20 cm.'});
+     const reference={version:1,mount:'wall',width:0.2,a:c.a,b:c.b,updatedAt:new Date().toISOString()};
+     const temp=target+'.'+crypto.randomUUID()+'.tmp';try{fs.writeFileSync(temp,JSON.stringify(reference),{flag:'wx'});fs.renameSync(temp,target);}finally{if(fs.existsSync(temp))fs.unlinkSync(temp);}
+     return json(200,{reference});
+    }return json(405,{error:'Método no permitido.'});
+   }
    const match=url.pathname.match(/^\/api\/projects\/([^/]+)(?:\/models(?:\/([^/]+)\/file)?)?$/);
    if(!match)return json(404,{error:'No encontrado.'});
    const id=match[1],modelID=match[2],project=read(id);
@@ -59,8 +74,7 @@ exports.createProjects=function(root=dataPath('datos','proyectos'),onModelSaved=
      const current=read(id),model={id:modelId,name,size:bytes,addedAt:new Date().toISOString()};
      if(url.searchParams.get('source')==='Revit2027'){model.source='Revit 2027';model.sourceModel=(url.searchParams.get('sourceModel')||'').replace(/[\x00-\x1f]/g,'').slice(0,180);model.scope=url.searchParams.get('scope')==='active-view'?'active-view':'document';}
      const previous=current.models;
-     fs.renameSync(temp,target);current.models=[model];current.updatedAt=model.addedAt;save(current);committed=true;
-     for(const old of previous){if(ID.test(old.id)&&old.id!==modelId)try{fs.unlinkSync(path.join(folder(id),old.id+'.ifc'));}catch(e){if(e.code!=='ENOENT')console.error('No se pudo retirar el IFC anterior:',e.code);}}
+     fs.renameSync(temp,target);current.models=[...previous,model];current.updatedAt=model.addedAt;save(current);committed=true;
      try{onModelSaved(id,model);}catch{}
      return json(201,{model});
     }finally{locks.delete(id);if(fs.existsSync(temp))fs.unlinkSync(temp);if(!committed&&fs.existsSync(target))fs.unlinkSync(target);}
