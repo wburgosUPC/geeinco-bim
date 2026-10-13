@@ -2,28 +2,29 @@
 <html lang="es">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Visor IFC · Local</title>
+  <title>Visor IFC · Nube</title>
   <meta name="description" content="Explora modelos IFC en tu computadora.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23182437'/%3E%3Cpath d='M8 23V9h7v14m3 0V14h6v9' fill='none' stroke='%238cbdff' stroke-width='3'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css"><link rel="stylesheet" href="ar.css">
   <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
-<link rel="stylesheet" href="/technology.css"></head>
+<link rel="stylesheet" href="/technology.css"><link rel="stylesheet" href="panels.css"></head>
 <body class="model-space">
 <header>
-  <div class="brand"><img class="geeinco-logo" src="/geeincobim-logo.svg" alt="GEEINCO S.A.C. · Consultoría y Construcción"><span class="badge">BIM · LOCAL</span></div>
+  <div class="brand"><img class="geeinco-logo" src="/geeincobim-logo.svg" alt="GEEINCO S.A.C. · Consultoría y Construcción"><span class="badge">BIM · NUBE</span></div>
   <a id="projects-link" href="/projects.html" style="color:#2964bf;text-decoration:none;font-size:14px;white-space:nowrap">Proyectos</a>
   <span id="filename">Sin modelo abierto</span>
   <button id="open" class="primary">＋ Abrir IFC</button><input id="file" type="file" accept=".ifc" hidden>
-  <button id="ar-start" data-model disabled>Ver en AR</button><button id="powerbi" data-model disabled>Power BI</button><button id="logout">Salir</button>
+  <button id="powerbi" data-model disabled>Power BI</button><button id="logout">Salir</button>
 </header>
 <main>
-  <aside class="left">
+  <aside class="left" id="model-panel">
     <div class="panel-title"><h1>Modelo</h1><span id="count" class="count">0</span></div>
     <label class="search"><span>⌕</span><input id="search" placeholder="Buscar nombre, tipo o ID" aria-label="Buscar elementos" disabled></label>
     <div id="tree" class="tree"><p class="muted">Los niveles y elementos aparecerán aquí al abrir un archivo.</p></div>
-    <div class="privacy"><strong>En tu computadora</strong><span>Los archivos se procesan aquí y no se envían a un servidor externo.</span></div>
+    <div class="privacy"><strong>Proyecto en la nube</strong><span>Los modelos del proyecto se guardan en tu servidor. Cada envío desde Revit crea una entrega.</span></div>
   </aside>
   <section id="viewport" aria-label="Visor tridimensional">
+<nav class="viewer-panels" aria-label="Paneles y realidad aumentada"><button id="toggle-model" aria-controls="model-panel" aria-expanded="true">Modelo</button><button id="toggle-properties" aria-controls="properties-panel" aria-expanded="true">Propiedades</button><button id="ar-start" data-model disabled>Ver en AR</button></nav>
     <div class="toolbar" aria-label="Herramientas del modelo">
       <button id="fit" data-model disabled title="Encuadrar todo">Encuadrar</button>
       <button id="top" data-model disabled title="Vista superior">Planta</button>
@@ -45,14 +46,14 @@
     <div class="navigation-hint">Arrastrar: girar <span>·</span> Rueda: acercar <span>·</span> Botón derecho: desplazar</div>
     <span class="orientation">Y ↑</span>
   </section>
-  <aside class="right">
+  <aside class="right" id="properties-panel">
     <div class="panel-title"><h2>Propiedades</h2><span class="subtle">BIM</span></div>
     <div id="selection-empty" class="selection-empty"><span>↖</span><h3>Selecciona un elemento</h3><p>Haz clic en el modelo o en el árbol para consultar sus datos.</p></div>
     <div id="selection" hidden><div class="selected-heading"><span id="selected-type"></span><h3 id="selected-name"></h3><span id="selected-id" class="subtle"></span></div><div class="selection-actions"><button id="isolate">Aislar</button><button id="hide">Ocultar</button><button id="focus">Acercar</button></div><div id="properties"></div></div>
   </aside>
 </main>
-<footer><span id="status" role="status">Listo para abrir un IFC</span><span>Visor local · v1.3</span></footer>
+<footer><span id="status" role="status">Listo para abrir un IFC</span><span>Visor BIM · Nube</span></footer>
 <script type="module" src="app.js"></script>
 <script src="session.js" defer></script>
-</body></html>
+<script src="panels.js" defer></script></body></html>
 

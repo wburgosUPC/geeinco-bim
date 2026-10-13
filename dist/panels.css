@@ -1,0 +1,12 @@
+.viewer-panels{position:absolute;top:12px;left:12px;right:12px;display:flex;gap:6px;z-index:4;flex-wrap:wrap;pointer-events:none}
+.viewer-panels button{pointer-events:auto;min-height:42px;box-shadow:0 2px 10px #17385715}
+.viewer-panels button[aria-expanded=true]{background:#e8eff8;border-color:#54779d}
+#ar-start{background:#d8b566;color:#142e45;font-weight:700;margin-left:auto}
+.model-space .toolbar{top:68px}
+.model-space .cut-panel{top:125px}
+@media(max-width:900px){.model-space{height:100dvh;min-height:0;overflow:hidden}.model-space header{height:auto;min-height:56px;padding:6px 10px;gap:8px;flex-wrap:wrap}.model-space header .brand{display:none}.model-space main{display:flex;position:relative}.model-space #viewport{height:auto;min-height:0;flex:1}.model-space aside.left,.model-space aside.right{position:absolute;top:118px;bottom:0;width:min(300px,85vw);max-height:none;z-index:6;box-shadow:0 4px 24px #14324f33}.model-space aside.left{left:0}.model-space aside.right{right:0}.model-space .tree{max-height:none}.model-space footer{font-size:11px}.model-space .toolbar{flex-wrap:nowrap;overflow-x:auto}.viewer-panels button{padding:8px;font-size:13px}}
+
+.reference-dialog{max-width:640px;width:calc(100% - 24px);max-height:90dvh;overflow:auto;border:1px solid #d6b369;border-radius:14px;color:#163950;padding:24px;line-height:1.5}.reference-dialog::backdrop{background:#071b32aa}.ref-buttons{display:flex;flex-wrap:wrap;gap:8px}.reference-dialog button{white-space:normal;min-height:44px}#ref-state{background:#edf3f7;padding:12px}#reference-print{display:none}#reference-overlay{position:fixed;inset:0;z-index:1100;padding:16px;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none;color:white}#reference-overlay button{pointer-events:auto}#ref-message{background:#10283edf;padding:12px;border-radius:10px}#reference-overlay .ar-actions{margin-top:auto}#reference-overlay button{min-height:48px}#reference-overlay[hidden]{display:none}
+@media print{@page{size:A4;margin:5mm}body{display:block!important;height:auto!important;overflow:visible!important;background:white!important}body>*{display:none!important}#reference-print{display:block!important;color:black;font:10pt Arial}#reference-print img{display:block;width:200mm;height:200mm;max-width:none}#reference-print h2{font:16pt Arial;margin:5mm 0}#reference-print p{max-width:195mm;overflow-wrap:anywhere}dialog{display:none!important}}
+
+.viewer-panels{flex-wrap:nowrap;overflow-x:auto;padding-bottom:5px}.viewer-panels button{flex-shrink:0}

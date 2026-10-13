@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { installAR } from './ar.js';
+import { installReference } from './reference.js';
 import { OrbitControls } from './vendor/OrbitControls.js';
 import { createModelPackage } from './powerbi-export.js';
 
@@ -84,7 +85,9 @@ function addMesh(data) {
   objects.set(data.id,meshes);
   if(data.index%40===0) $('busy-text').textContent=`Leyendo geometría… ${data.index+1} / ${data.total}`;
 }
-async function openFile(file) {
+let savedModelActive=false;
+async function openFile(file,fromSaved=false) {
+  savedModelActive=fromSaved;
   if(loading)return;
   if(!file || !/\.ifc$/i.test(file.name)){status('Selecciona un archivo .ifc. Los archivos .rvt deben exportarse desde Revit a IFC.');return;}
   loading=true;$('open').disabled=true;$('demo').disabled=true;$('busy').hidden=false;
@@ -247,6 +250,7 @@ renderer.domElement.addEventListener('pointerup',e=>{
   const rect=renderer.domElement.getBoundingClientRect();pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);
   raycaster.setFromCamera(pointer,camera);
   const hits=raycaster.intersectObjects(modelGroup.children,false).filter(hit=>hit.object.visible&&(!cutting||plane.distanceToPoint(hit.point)>=0));
+  if(hits.length&&referenceUI.isPicking()){referenceUI.pick(hits[0].point);return;}
   if(hits.length){if(measuring)measurePoint(hits[0].point);else selectElement(hits[0].object.userData.id);}else if(!measuring)clearSelection();
 });
 $('open').onclick=$('empty-open').onclick=()=>$('file').click();
@@ -280,10 +284,12 @@ async function openSavedModel(){
     const entry=data.project.models.find(m=>m.id===model);if(!entry)throw Error('El archivo no está en este proyecto.');
     const response=await fetch(`/api/projects/${encodeURIComponent(project)}/models/${encodeURIComponent(model)}/file`);if(response.status===401){location.replace('/login.html');return;}if(!response.ok)throw Error('No se pudo leer el IFC guardado.');
     document.title=data.project.name+' · Visor IFC';$('projects-link').title='Volver a '+data.project.name;
-    const bytes=await response.arrayBuffer();loading=false;await openFile(new File([bytes],entry.name));
+    const bytes=await response.arrayBuffer();loading=false;await openFile(new File([bytes],entry.name),true);
   }catch(e){fail(e.message);}
 }
 openSavedModel();
 
 installAR({renderer,camera,controls,modelGroup,isReady:()=>loaded&&!loading,status,redraw:resize});
 
+
+const referenceUI=installReference({renderer,camera,controls,modelGroup,isReady:()=>loaded&&!loading&&savedModelActive,status,redraw:resize});
