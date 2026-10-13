@@ -22,9 +22,8 @@ export function installAR({renderer,camera,controls,modelGroup,isReady,status,re
   if(starting||session||!isReady())return;
   if(!window.isSecureContext){status('AR necesita una dirección HTTPS. El portal local todavía no está publicado para tu celular.');return;}
   if(!navigator.xr){status('Este navegador no ofrece AR. En el Galaxy Z Fold7 usa Chrome actualizado y Servicios de Google Play para RA.');return;}
-  starting=true;button.disabled=true;
+  starting=true;button.disabled=true;status('Solicitando sesión AR al navegador…');
   try{
-   if(!await navigator.xr.isSessionSupported('immersive-ar'))throw Error('AR no está disponible en este dispositivo o navegador.');
    const next=await navigator.xr.requestSession('immersive-ar',{requiredFeatures:['hit-test','dom-overlay'],domOverlay:{root:overlay}});session=next;next.addEventListener('end',restore,{once:true});
    snapshot={position:camera.position.clone(),quaternion:camera.quaternion.clone(),projection:camera.projectionMatrix.clone(),controlsEnabled:controls.enabled};controls.enabled=false;
    content.position.set(0,0,0);content.updateMatrixWorld(true);modelGroup.updateWorldMatrix(true,true);const bounds=new THREE.Box3();
@@ -34,7 +33,7 @@ export function installAR({renderer,camera,controls,modelGroup,isReady,status,re
    overlay.hidden=false;document.body.classList.add('ar-presenting');renderer.xr.enabled=true;renderer.xr.setReferenceSpaceType('local');await renderer.xr.setSession(next);
    reference=await next.requestReferenceSpace('local');const viewer=await next.requestReferenceSpace('viewer');hitSource=await next.requestHitTestSource({space:viewer});
    renderer.setAnimationLoop((time,frame)=>{if(frame&&hitSource&&!placed){const hits=frame.getHitTestResults(hitSource);const pose=hits[0]?.getPose(reference);validHit=!!pose;reticle.visible=validHit;el('ar-place').disabled=!validHit;if(pose)reticle.matrix.fromArray(pose.transform.matrix);}renderer.render(arScene,camera);});
-  }catch(e){const message=e.name==='NotAllowedError'?'Permiso de realidad aumentada denegado. Puedes volver a intentarlo.':'No se pudo iniciar AR: '+e.message;if(session){try{await session.end();}catch{restore();}}else restore();status(message);}
+  }catch(e){const message=e.name==='NotAllowedError'?'Permiso de realidad aumentada denegado. Puedes volver a intentarlo.':'No se pudo iniciar AR: '+e.message;if(session){try{await session.end();}catch{restore();}}else restore();status(message);window.alert(message);}
  };
 }
 
