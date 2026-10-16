@@ -9,6 +9,7 @@ const {createProjects} = require('./projects.cjs');
 const root = path.join(__dirname, 'dist');
 const mime = { '.zip':'application/zip', '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.wasm':'application/wasm', '.ifc':'application/octet-stream', '.svg':'image/svg+xml' };
 const auth = createAuth();
+const planning=require('./planning.cjs').createPlanning();
 const {createPowerBI}=require('./powerbi.cjs');
 const powerbi=createPowerBI();
 const projects = createProjects(undefined,id=>powerbi.notify(id));
@@ -17,6 +18,7 @@ const server = http.createServer(async (req,res) => {
   if (await powerbi.publicHandle(req,res,server.address().port)) return;
   if (await auth.handle(req,res,server.address().port)) return;
   if (await powerbi.handle(req,res,server.address().port)) return;
+  if (await planning.handle(req,res,server.address().port)) return;
   if (await projects.handle(req,res,server.address().port)) return;
   if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); return res.end(); }
   let pathname;
