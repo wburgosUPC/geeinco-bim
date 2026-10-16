@@ -2,3 +2,6 @@
 /* Keep the masthead aligned with the portal columns. */
 .portal-header,footer{width:100%}.portal-header{max-width:1320px}.access-card{backdrop-filter:blur(12px)}
 @media(min-width:1001px){.access-card{box-shadow:0 28px 80px #0004,0 0 65px #235fa110}}
+
+.revit-download{margin-top:22px;padding-top:20px;border-top:1px solid #ffffff25}.revit-download a{display:block;padding:13px 16px;border:1px solid #d6b56b;border-radius:10px;color:#f2d490;text-align:center;text-decoration:none;font-weight:600;line-height:1.4}.revit-download a:hover{background:#d6b56b20}.revit-download a:focus-visible{outline:3px solid #fff;outline-offset:3px}.revit-download p{color:#b9cfe6;font-size:12px;line-height:1.6;margin:10px 0 0}
+
