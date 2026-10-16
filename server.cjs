@@ -7,7 +7,7 @@ const { spawn } = require('node:child_process');
 const {createAuth} = require('./auth.cjs');
 const {createProjects} = require('./projects.cjs');
 const root = path.join(__dirname, 'dist');
-const mime = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.wasm':'application/wasm', '.ifc':'application/octet-stream', '.svg':'image/svg+xml' };
+const mime = { '.zip':'application/zip', '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.wasm':'application/wasm', '.ifc':'application/octet-stream', '.svg':'image/svg+xml' };
 const auth = createAuth();
 const {createPowerBI}=require('./powerbi.cjs');
 const powerbi=createPowerBI();
@@ -44,3 +44,4 @@ server.on('error',async e=>{
   }
   console.error(e.message);process.exitCode=1;
 });
+
