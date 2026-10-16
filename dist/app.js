@@ -1,3 +1,4 @@
+import {installPlanning} from './planning.js';
 import * as THREE from 'three';
 import { installAR } from './ar.js';
 import { installReference } from './reference.js';
@@ -58,7 +59,7 @@ function clearSelection() {
   document.querySelectorAll('.tree button.active').forEach(b=>b.classList.remove('active'));
 }
 function resetModel() {
-  clearSelection(); disposeGroup(modelGroup); clearMeasure();
+  planningUI.reset(); clearSelection(); disposeGroup(modelGroup); clearMeasure();
   elements.clear();objects.clear();spatial=null;loaded=false;
   cutting=false;measuring=false;flipped=false;
   $('cut').setAttribute('aria-pressed','false');$('measure').setAttribute('aria-pressed','false');
@@ -104,7 +105,7 @@ async function openFile(file,fromSaved=false) {
     worker.onerror=()=>fail('No se pudo iniciar el lector IFC. Vuelve a abrir el visor con “Abrir visor.cmd”.');
     worker.onmessage=({data})=>{
       if(data.kind==='filter-index'){
-        for(const entry of data.entries){const e=elements.get(entry.id);if(e){e.module=entry.module;e.block=entry.block;e.discipline=entry.discipline;}}
+        for(const entry of data.entries){const e=elements.get(entry.id);if(e){e.module=entry.module;e.block=entry.block;e.discipline=entry.discipline;e.item=entry.item;}}
         const missing=[];
         for(const key of ['module','block','discipline']){const values=[...new Set(data.entries.flatMap(e=>e[key]))].sort((a,b)=>a.localeCompare(b));
           $('filter-'+key).disabled=!values.length;$ (key+'-values').replaceChildren();
@@ -112,7 +113,7 @@ async function openFile(file,fromSaved=false) {
           if(!values.length)missing.push(({module:'Módulo',block:'Bloque',discipline:'Disciplina'})[key]);
         }
         $('filter-state').dataset.coverage=missing.length?'Sin parámetro exportado: '+missing.join(', '):'Parámetros de Revit disponibles.';
-        applyTextFilters();
+        planningUI.modelReady();applyTextFilters();
       }
       if(data.kind==='filter-index-error'){$('filter-state').textContent='No se pudo leer Módulo/Bloque/Disciplina. La búsqueda general sigue disponible.';}
       if(data.kind==='mesh')addMesh(data);
@@ -208,6 +209,7 @@ function drawTree(){
 }
 function selectElement(id){
   clearSelection();if(!elements.has(id))return;selected=id;
+  planningUI.selected(id);
   const e=elements.get(id);for(const mesh of objects.get(id)||[])mesh.material.emissive.setHex(0x245e9c);
   $('selection-empty').hidden=true;$('selection').hidden=false;
   $('selected-type').textContent=e.type;$('selected-name').textContent=e.name;$('selected-id').textContent=`Express ID #${id}`;
@@ -285,13 +287,13 @@ function applyTextFilters(){
  let count=0;for(const [id,e] of elements){const show=matchesTextFilters(e);if(show)count++;for(const mesh of objects.get(id)||[])mesh.visible=show;}
  if(selected!==null&&!matchesTextFilters(elements.get(selected)))clearSelection();
  $('filter-state').textContent=count.toLocaleString('es-PE')+' de '+elements.size.toLocaleString('es-PE')+' elementos. '+($('filter-state').dataset.coverage||'Leyendo módulos, bloques y disciplinas…');
- drawTree();requestRender();
+ planningUI.apply();drawTree();requestRender();
 }
 function clearTextFilters(){for(const id of filterIds)$(id).value='';applyTextFilters();}
 let searchTimer;for(const id of filterIds)$(id).oninput=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(applyTextFilters,160);};
 $('filter-clear').onclick=clearTextFilters;
 $('powerbi').onclick=()=>{if(!loaded||loading)return;loading=true;$('powerbi').disabled=true;$('open').disabled=true;$('busy-text').textContent='Preparando el modelo completo para Power BI…';$('busy').hidden=false;worker.postMessage({action:'export',ids:[...elements.keys()]});};
-$('restore').onclick=()=>{clearTextFilters();status('Filtros limpiados. Todos los elementos están visibles.');};
+$('restore').onclick=()=>{planningUI.reset();clearTextFilters();status('Filtros limpiados. Todos los elementos están visibles.');};
 $('isolate').onclick=()=>{if(selected===null)return;for(const [id,meshes]of objects)for(const m of meshes)m.visible=id===selected;requestRender();status('Elemento aislado. Usa “Mostrar todo” para restaurar el modelo.');};
 $('hide').onclick=()=>{for(const m of objects.get(selected)||[])m.visible=false;clearSelection();status('Elemento oculto. Usa “Mostrar todo” para restaurarlo.');};
 $('focus').onclick=()=>{const bounds=new THREE.Box3();for(const mesh of objects.get(selected)||[])bounds.expandByObject(mesh);fitBox(bounds);};
@@ -334,3 +336,5 @@ for(const [value,label] of [['1','Movimiento normal'],['2','Movimiento rápido']
 try{const saved=localStorage.getItem('visor.navigation.speed');if(['1','2','.5'].includes(saved))speed.value=saved;}catch{}
 speed.onchange=()=>{const value=Number(speed.value);controls.panSpeed=value;controls.rotateSpeed=value;controls.zoomSpeed=value;try{localStorage.setItem('visor.navigation.speed',speed.value);}catch{}};
 speed.onchange();document.querySelector('.viewer-panels').append(speed);
+
+const planningUI=installPlanning({getElements:()=>elements,getObjects:()=>objects,render:requestRender,baseFilters:applyTextFilters,select:selectElement});

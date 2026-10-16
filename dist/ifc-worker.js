@@ -44,22 +44,22 @@ self.onmessage = async ({data}) => {
       self.postMessage({kind:'ready',elements,spatial,schema:api.GetModelSchema(model)});
       // Build the small text-filter index in the worker, once per file.
       try {
-        const index=new Map(elements.map(e=>[e.id,{id:e.id,module:[],block:[],discipline:[]}])) ,cache=new Map();
+        const index=new Map(elements.map(e=>[e.id,{id:e.id,module:[],block:[],discipline:[],item:[]}])) ,cache=new Map();
         const norm=s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ');
         function readSet(id){
           if(cache.has(id))return cache.get(id);
-          const result={module:[],block:[],discipline:[]},set=api.GetLine(model,id,true);
+          const result={module:[],block:[],discipline:[],item:[]},set=api.GetLine(model,id,true);
           for(const p of set.HasProperties||[]){
             const name=norm(value(p.Name)||'');
-            const key=/\b(modulo|modulos|module)\b/.test(name)?'module':/\b(bloque|bloques|block)\b/.test(name)?'block':/\b(disciplina|discipline|especialidad)\b/.test(name)?'discipline':null;
+            const key=/\b(modulo|modulos|module)\b/.test(name)?'module':/\b(bloque|bloques|block)\b/.test(name)?'block':/\b(disciplina|discipline|especialidad)\b/.test(name)?'discipline':/\b(item|partida|codigo partida)\b/.test(name)?'item':null;
             if(!key)continue;
             const raw=p.NominalValue??p.ListValues??p.EnumerationValues;
             for(const item of [].concat(raw??[])){const v=value(item);if(typeof v==='string'||typeof v==='number'){const text=String(v).trim();if(text)result[key].push(text);}}
           }
           cache.set(id,result);return result;
         }
-        function apply(objects,setIds,replace){for(const ref of objects||[]){const entry=index.get(value(ref));if(!entry)continue;const found={module:[],block:[],discipline:[]};for(const id of setIds){try{const p=readSet(id);for(const key of ['module','block','discipline'])found[key].push(...p[key]);}catch{}}
-          for(const key of ['module','block','discipline'])if(found[key].length)entry[key]=[...new Set(replace?found[key]:[...entry[key],...found[key]])];}}
+        function apply(objects,setIds,replace){for(const ref of objects||[]){const entry=index.get(value(ref));if(!entry)continue;const found={module:[],block:[],discipline:[],item:[]};for(const id of setIds){try{const p=readSet(id);for(const key of ['module','block','discipline','item'])found[key].push(...p[key]);}catch{}}
+          for(const key of ['module','block','discipline','item'])if(found[key].length)entry[key]=[...new Set(replace?found[key]:[...entry[key],...found[key]])];}}
         const types=api.GetLineIDsWithType(model,IFCRELDEFINESBYTYPE);
         for(let i=0;i<types.size();i++){const rel=api.GetLine(model,types.get(i),false),type=api.GetLine(model,value(rel.RelatingType),false);apply(rel.RelatedObjects,(type.HasPropertySets||[]).map(value),false);}
         const rels=api.GetLineIDsWithType(model,IFCRELDEFINESBYPROPERTIES),byObject=new Map();
