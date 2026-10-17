@@ -1,3 +1,4 @@
+import {createARRecording} from './ar-recording.js';
 import * as THREE from 'three';
 import {boardIds} from './marker-board.js';
 import {referenceInverse} from './reference-math.js';
@@ -7,11 +8,11 @@ import {MarkerAnchorState} from './marker-anchor-state.js';
 export function createMarkerWalk({modelGroup,project,model}){
  const overlay=document.createElement('section');overlay.id='marker-walk';overlay.hidden=true;
  overlay.innerHTML='<div class="walk-heading"><strong>GEEINCO · Recorrido AR</strong><button id="walk-exit">Salir</button></div><p id="walk-status" role="status">Preparando seguimiento…</p><div class="walk-actions"><button id="walk-realign">Volver a alinear</button><label>Transparencia <input id="walk-opacity" type="range" min="15" max="90" value="55"></label><small>Primero enfoca los cuatro marcadores. Espera «Modelo fijado» antes de caminar. El anclaje dura esta sesión; comprueba la coincidencia al cambiar de zona.</small></div>';
- document.body.append(overlay);const el=id=>overlay.querySelector('#'+id),say=t=>el('walk-status').textContent=t;
+ document.body.append(overlay);const recording=createARRecording(overlay);const el=id=>overlay.querySelector('#'+id),say=t=>el('walk-status').textContent=t;
  const state=new MarkerAnchorState(),ids=boardIds(project,model);
  let session=null,starting=false,renderer=null,reader=null,worker=null,binding=null,space=null,scene=null,group=null,anchor=null,creating=false,materials=[],pending=null,captureId=0,generation=0,lastCapture=0,lastGood=0,startedAt=0;
  function reset(){generation++;anchor?.delete();anchor=null;creating=false;state.reset();lastGood=0;if(group)group.visible=false;say('Enfoca la nueva placa completa y mantén el teléfono estable.');}
- function cleanup(){generation++;session=null;starting=false;anchor?.delete();anchor=null;worker?.terminate();worker=null;pending=null;creating=false;state.reset();renderer?.setAnimationLoop(null);reader?.dispose();reader=null;for(const m of materials)m.dispose();materials=[];renderer?.dispose();renderer?.forceContextLoss();renderer?.domElement.remove();renderer=null;scene=null;group=null;overlay.hidden=true;}
+ function cleanup(){recording.cleanup();generation++;session=null;starting=false;anchor?.delete();anchor=null;worker?.terminate();worker=null;pending=null;creating=false;state.reset();renderer?.setAnimationLoop(null);reader?.dispose();reader=null;for(const m of materials)m.dispose();materials=[];renderer?.dispose();renderer?.forceContextLoss();renderer?.domElement.remove();renderer=null;scene=null;group=null;overlay.hidden=true;}
  async function stop(){if(session){try{await session.end();}catch{cleanup();}}else cleanup();}
  el('walk-exit').onclick=stop;el('walk-realign').onclick=reset;
  overlay.addEventListener('beforexrselect',e=>e.preventDefault());window.addEventListener('pagehide',stop);
@@ -68,7 +69,7 @@ export function createMarkerWalk({modelGroup,project,model}){
        }
       }
      }
-     renderer.render(scene,camera);
+     renderer.render(scene,camera);recording.frameXR({frame,space,scene,binding,reader,time});
     }catch(e){group.visible=false;state.reset();say('No se pudo continuar el recorrido: '+e.message);renderer.setAnimationLoop(null);}
    });
   }catch(e){await stop();throw Error(e.name==='NotSupportedError'?'Este navegador no admite juntas cámara AR y anclajes. No se puede fijar el modelo para recorrer en esta configuración.':e.name==='NotAllowedError'?'Autoriza la cámara y la realidad aumentada para iniciar el recorrido.':e.message);}

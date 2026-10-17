@@ -1,3 +1,4 @@
+import {createARRecording} from './ar-recording.js';
 import * as THREE from 'three';
 import {boardIds} from './marker-board.js';
 import {referenceInverse} from './reference-math.js';
@@ -8,12 +9,12 @@ export function createMarkerAR({modelGroup,project,model,onExit,acquireCamera=co
  let frame=0,frameTime=0,focalRatio=.9,calibrated=false,calibrationKey='',lastCorners=null;
  const host=document.createElement('section');host.id='marker-ar';host.hidden=true;
  host.innerHTML='<div class="marker-stage"><video autoplay muted playsinline></video><div class="marker-render"></div><canvas class="marker-guides"></canvas></div><div class="marker-controls"><div><strong>GEEINCO · AR con 4 marcadores</strong><button type="button" id="marker-exit">Salir</button></div><p id="marker-status" role="status">Iniciando cámara…</p><label>Transparencia del modelo <input id="marker-opacity" type="range" min="15" max="90" value="55"></label><details><summary>Ajuste de cámara</summary><p>La profundidad usa una cámara aproximada hasta calibrarla. Para calibrar: placa de frente, cuatro marcadores visibles; mide desde la cámara al centro de la placa.</p><label>Distancia en cm <input id="marker-distance" type="number" min="20" max="200" value="50"></label><button id="marker-calibrate" type="button">Calibrar a esta distancia</button><p id="marker-calibration">Cámara aproximada · verifica otro punto de obra.</p></details><small>Mantén los 4 marcadores visibles. Si se pierde la placa se oculta el modelo. Revisión visual, no replanteo. Video procesado en este teléfono.</small></div>';
- document.body.append(host);const el=id=>host.querySelector('#'+id),video=host.querySelector('video'),stage=host.querySelector('.marker-stage'),guides=host.querySelector('.marker-guides'),guide=guides.getContext('2d');
+ document.body.append(host);const recording=createARRecording(host);const el=id=>host.querySelector('#'+id),video=host.querySelector('video'),stage=host.querySelector('.marker-stage'),guides=host.querySelector('.marker-guides'),guide=guides.getContext('2d');
  const capture=document.createElement('canvas'),ctx=capture.getContext('2d',{willReadFrequently:true});
  const camera=new THREE.PerspectiveCamera(60,1,.02,2000),ids=boardIds(project,model);
  const message=t=>{el('marker-status').textContent=t;};
  function hide(){if(anchor)anchor.visible=false;stable=0;lastCorners=null;guide.clearRect(0,0,guides.width,guides.height);}
- function cleanup(){active=false;starting=false;cancelAnimationFrame(raf);stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;worker?.terminate();worker=null;pending=false;for(const m of materials)m.dispose();materials=[];renderer?.dispose();renderer?.forceContextLoss();renderer=null;host.querySelector('.marker-render').replaceChildren();anchor=null;scene=null;host.hidden=true;document.body.classList.remove('marker-presenting');onExit?.();}
+ function cleanup(){recording.cleanup();active=false;starting=false;cancelAnimationFrame(raf);stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;worker?.terminate();worker=null;pending=false;for(const m of materials)m.dispose();materials=[];renderer?.dispose();renderer?.forceContextLoss();renderer=null;host.querySelector('.marker-render').replaceChildren();anchor=null;scene=null;host.hidden=true;document.body.classList.remove('marker-presenting');onExit?.();}
  el('marker-exit').onclick=cleanup;
  document.addEventListener('visibilitychange',()=>{if(document.hidden&&(active||starting))cleanup();});
  window.addEventListener('pagehide',cleanup);
@@ -45,7 +46,7 @@ export function createMarkerAR({modelGroup,project,model,onExit,acquireCamera=co
    frameTime=now;ctx.drawImage(video,0,0,capture.width,capture.height);const image=ctx.getImageData(0,0,capture.width,capture.height);pending=true;
    worker.postMessage({buffer:image.data.buffer,width:capture.width,height:capture.height,focal:focalRatio*Math.max(capture.width,capture.height),ids,frame:++frame},[image.data.buffer]);
   }
-  renderer.render(scene,camera);
+  renderer.render(scene,camera);recording.frame2D(video,renderer.domElement,now);
  }
  async function start(config){
   if(active||starting)return;starting=true;host.hidden=false;document.body.classList.add('marker-presenting');message('Solicitando cámara trasera…');
