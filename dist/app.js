@@ -1,3 +1,4 @@
+import {installWalk} from './walk.js';
 import {installPlanning} from './planning.js';
 import * as THREE from 'three';
 import { installAR } from './ar.js';
@@ -36,7 +37,7 @@ const pointer = new THREE.Vector2();
 const status = message => { $('status').textContent = message; };
 const unwrap = v => v && typeof v === 'object' && 'value' in v ? v.value : v;
 let pendingFrame=0,qualityTimer;
-function requestRender(){if(renderer.xr.isPresenting)return;if(!pendingFrame&&!document.hidden)pendingFrame=requestAnimationFrame(()=>{pendingFrame=0;if(renderer.xr.isPresenting)return;controls.update();renderer.render(scene,camera);});}
+function requestRender(){if(renderer.xr.isPresenting)return;if(!pendingFrame&&!document.hidden)pendingFrame=requestAnimationFrame(()=>{pendingFrame=0;if(renderer.xr.isPresenting)return;if(controls.enabled)controls.update();renderer.render(scene,camera);});}
 controls.addEventListener('change',requestRender);
 controls.addEventListener('start',()=>{clearTimeout(qualityTimer);renderer.setPixelRatio(Math.min(devicePixelRatio,1));requestRender();});
 controls.addEventListener('end',()=>{clearTimeout(qualityTimer);qualityTimer=setTimeout(()=>{renderer.setPixelRatio(restingPixelRatio);requestRender();},180);});
@@ -59,7 +60,7 @@ function clearSelection() {
   document.querySelectorAll('.tree button.active').forEach(b=>b.classList.remove('active'));
 }
 function resetModel() {
-  planningUI.reset(); clearSelection(); disposeGroup(modelGroup); clearMeasure();
+  walkUI.exit();planningUI.reset(); clearSelection(); disposeGroup(modelGroup); clearMeasure();
   elements.clear();objects.clear();spatial=null;loaded=false;
   cutting=false;measuring=false;flipped=false;
   $('cut').setAttribute('aria-pressed','false');$('measure').setAttribute('aria-pressed','false');
@@ -264,6 +265,7 @@ function measurePoint(point){
 let down=null;
 renderer.domElement.addEventListener('pointerdown',e=>{if(e.button===0)down={x:e.clientX,y:e.clientY};else down=null;});
 renderer.domElement.addEventListener('pointerup',e=>{
+  if(walkUI.isActive())return;
   if(renderer.xr.isPresenting||!loaded||!down||Math.hypot(e.clientX-down.x,e.clientY-down.y)>5){down=null;return;}down=null;
   const rect=renderer.domElement.getBoundingClientRect();pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);
   raycaster.setFromCamera(pointer,camera);
@@ -338,3 +340,5 @@ speed.onchange=()=>{const value=Number(speed.value);controls.panSpeed=value;cont
 speed.onchange();document.querySelector('.viewer-panels').append(speed);
 
 const planningUI=installPlanning({getElements:()=>elements,getObjects:()=>objects,render:requestRender,baseFilters:applyTextFilters,select:selectElement});
+
+const walkUI=installWalk({camera,controls,renderer,modelGroup,isReady:()=>loaded&&!loading,render:requestRender,status});
