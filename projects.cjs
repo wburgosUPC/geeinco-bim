@@ -78,7 +78,7 @@ exports.createProjects=function(root=dataPath('datos','proyectos'),onModelSaved=
      // Metadata is committed only after the complete IFC has been validated and stored.
      // Keep the public model ID stable; invalidate calibration for the replaced geometry.
      for(const old of previous){
-      for(const suffix of ['.ifc','.powerbi.json']){try{fs.unlinkSync(path.join(folder(id),(old.revision||old.id)+suffix));}catch(e){if(e.code!=='ENOENT')console.error('No se pudo limpiar un archivo anterior:',e.code);}}
+      for(const suffix of ['.ifc']){try{fs.unlinkSync(path.join(folder(id),(old.revision||old.id)+suffix));}catch(e){if(e.code!=='ENOENT')console.error('No se pudo limpiar un archivo anterior:',e.code);}}
       try{fs.unlinkSync(path.join(folder(id),old.id+'.reference.json'));}catch(e){if(e.code!=='ENOENT')console.error('No se pudo limpiar la referencia anterior:',e.code);}
      }
      try{onModelSaved(id,model);}catch{}
