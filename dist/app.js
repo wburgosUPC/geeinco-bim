@@ -91,7 +91,7 @@ function addMesh(data) {
   objects.set(data.id,meshes);
   if(data.index%40===0) $('busy-text').textContent=`Leyendo geometría… ${data.index+1} / ${data.total}`;
 }
-let savedModelActive=false;
+let savedModelActive=false,savedRevision=null;
 async function openFile(file,fromSaved=false) {
   savedModelActive=fromSaved;
   if(loading)return;
@@ -104,7 +104,7 @@ async function openFile(file,fromSaved=false) {
     const buffer=await file.arrayBuffer();
     worker=new Worker(new URL('./ifc-worker.js',import.meta.url),{type:'module'});
     worker.onerror=()=>fail('No se pudo iniciar el lector IFC. Vuelve a abrir el visor con “Abrir visor.cmd”.');
-    worker.onmessage=({data})=>{
+    worker.onmessage=async({data})=>{
       if(data.kind==='filter-index'){
         for(const entry of data.entries){const e=elements.get(entry.id);if(e){e.module=entry.module;e.block=entry.block;e.discipline=entry.discipline;e.item=entry.item;}}
         const missing=[];
@@ -124,9 +124,18 @@ async function openFile(file,fromSaved=false) {
       if(data.kind==='export-ready'){
         try{
           const pack=createModelPackage({elements,objects,modelGroup,spatial,metadata:new Map(data.metadata.map(m=>[m.id,m])),filename:currentName});
-          const blob=new Blob([JSON.stringify(pack)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
-          a.href=url;a.download=currentName.replace(/\.ifc$/i,'')+'-PowerBI.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);
-          status(`Exportados ${pack.Elementos.length} elementos y ${pack.Propiedades.length} propiedades para Power BI.`);
+          if(savedModelActive&&savedRevision){
+            $('busy-text').textContent='Publicando resultado preparado en tu computadora…';
+            const parts=[JSON.stringify({Version:1,Archivo:currentName,UnidadGeometria:'m'})+'\n'];
+            for(const table of ['Elementos','Geometria','Propiedades']){parts.push(JSON.stringify({table,empty:true,row:{}})+'\n');for(const row of pack[table])parts.push(JSON.stringify({table,row})+'\n');}
+            parts.push('{"end":true}\n');
+            const pid=new URLSearchParams(location.search).get('project');
+            const r=await fetch('/api/powerbi/projects/'+encodeURIComponent(pid)+'?revision='+encodeURIComponent(savedRevision),{method:'PUT',headers:{'Content-Type':'application/x-ndjson'},body:new Blob(parts)});
+            const result=await r.json();if(!r.ok)throw Error(result.error||'No se pudo publicar.');
+            status(`Power BI actualizado: ${result.elements} elementos. El enlace del proyecto se conserva. Conversión realizada en este equipo.`);
+          }else{
+            const blob=new Blob([JSON.stringify(pack)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=currentName.replace(/\.ifc$/i,'')+'-PowerBI.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);status(`Exportados ${pack.Elementos.length} elementos para Power BI.`);
+          }
         }catch(e){status(`No se pudo exportar: ${e.message}`);}finally{$('busy').hidden=true;loading=false;$('open').disabled=false;$('powerbi').disabled=false;}
       }
       if(data.kind==='error'){
@@ -317,7 +326,7 @@ async function openSavedModel(){
   loading=true;$('busy').hidden=false;$('busy-text').textContent='Abriendo archivo del proyecto…';$('open').disabled=true;$('demo').disabled=true;
   try{
     const detail=await fetch('/api/projects/'+encodeURIComponent(project));if(detail.status===401){location.replace('/login.html');return;}const data=await detail.json();if(!detail.ok)throw Error(data.error||'No se pudo abrir el proyecto.');
-    const entry=data.project.models.find(m=>m.id===model);if(!entry)throw Error('El archivo no está en este proyecto.');
+    const entry=data.project.models.find(m=>m.id===model);if(!entry)throw Error('El archivo no está en este proyecto.');savedRevision=entry.revision||entry.id;
     const response=await fetch(`/api/projects/${encodeURIComponent(project)}/models/${encodeURIComponent(model)}/file`);if(response.status===401){location.replace('/login.html');return;}if(!response.ok)throw Error('No se pudo leer el IFC guardado.');
     document.title=data.project.name+' · Visor IFC';$('projects-link').title='Volver a '+data.project.name;
     const bytes=await response.arrayBuffer();loading=false;await openFile(new File([bytes],entry.name),true);
