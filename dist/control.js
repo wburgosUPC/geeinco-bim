@@ -14,31 +14,31 @@ const note=t=>`<p class="note">${esc(t)}</p>`;
 function chart(rows,series,{line=false,rate=false,field='month',click=true}={}){
  if(!rows.length)return '<div class="empty">No hay datos para esta selección.</div>';
  if(!line&&field!=='month')return horizontalBars(rows,series,field);
- const w=720,h=300,L=70,R=20,T=25,B=62,pw=w-L-R,ph=h-T-B,vals=rows.flatMap(r=>series.map(s=>r[s.key])).filter(x=>x!=null&&Number.isFinite(x));
+ const w=560,h=250,L=62,R=16,T=22,B=48,pw=w-L-R,ph=h-T-B,vals=rows.flatMap(r=>series.map(s=>r[s.key])).filter(x=>x!=null&&Number.isFinite(x));
  if(!vals.length)return '<div class="empty">Sin registros disponibles.</div>';
  const low=Math.min(0,...vals),high=Math.max(1,...vals),span=high-low,y=v=>T+ph-(v-low)/span*ph,x=i=>L+(i+.5)*pw/rows.length;
  let out='<div class="legend">'+series.map(s=>`<span><i class="dot" style="background:${s.color}"></i>${esc(s.label)}</span>`).join('')+'</div>';
  let svg=`<svg class="chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(series.map(s=>s.label).join(' y '))}">`;
  for(let i=0;i<=4;i++){let v=low+span*i/4,yy=y(v);svg+=`<path d="M${L} ${yy}H${w-R}" stroke="#e9eef2"/><text x="${L-9}" y="${yy+4}" text-anchor="end">${esc(rate?number(v):short(v))}</text>`;}
- const step=Math.max(1,Math.ceil(rows.length/12));
+ const step=Math.max(1,Math.ceil(rows.length/8));
  rows.forEach((r,i)=>{if(i%step===0||i===rows.length-1){const txt=field==='month'?monthName(r[field]):r[field];svg+=`<text transform="translate(${x(i)},${h-B+19}) rotate(-30)" text-anchor="end">${esc(String(txt).length>23?String(txt).slice(0,22)+'…':txt)}</text>`;}});
  series.forEach((s,j)=>{
-  if(line){let d='',open=false;rows.forEach((r,i)=>{if(r[s.key]==null){open=false;return;}d+=(open?'L':'M')+x(i)+' '+y(r[s.key])+' ';open=true;});svg+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="1.5"/>`;}
+  if(line){let d='',open=false;rows.forEach((r,i)=>{if(r[s.key]==null){open=false;return;}d+=(open?'L':'M')+x(i)+' '+y(r[s.key])+' ';open=true;});svg+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="1.2" vector-effect="non-scaling-stroke"/>`;}
   rows.forEach((r,i)=>{const v=r[s.key];if(v==null)return;const title=`${field==='month'?monthName(r[field]):r[field]} · ${s.label}: ${rate?money(v):number(v)}`;const attr=click&&field==='month'?`data-month="${esc(r[field])}" tabindex="0" role="button" aria-label="Filtrar ${esc(monthName(r[field]))}"`:'';
-   if(line){svg+=`<circle cx="${x(i)}" cy="${y(v)}" r="3" fill="${s.color}" ${attr}><title>${esc(title)}</title></circle>`;if(s.labels&&rows.length<=24)svg+=`<text class="label" x="${x(i)}" y="${y(v)-10}" text-anchor="middle">${number(v)}</text>`;}
-   else{const bw=Math.min(30,pw/rows.length*.75/series.length),xx=x(i)+(j-series.length/2)*bw;svg+=`<rect x="${xx}" y="${Math.min(y(v),y(0))}" width="${bw-1}" height="${Math.max(1,Math.abs(y(0)-y(v)))}" fill="${s.color}" ${attr}><title>${esc(title)}</title></rect>`;}
+   if(line){svg+=`<circle cx="${x(i)}" cy="${y(v)}" r="2" fill="${s.color}" ${attr}><title>${esc(title)}</title></circle>`;if(s.labels&&rows.length<=24)svg+=`<text class="label" x="${x(i)}" y="${y(v)-10}" text-anchor="middle">${number(v)}</text>`;}
+   else{const bw=Math.min(20,pw/rows.length*.68/series.length),xx=x(i)+(j-series.length/2)*bw;svg+=`<rect x="${xx}" y="${Math.min(y(v),y(0))}" width="${bw-1}" height="${Math.max(1,Math.abs(y(0)-y(v)))}" fill="${s.color}" ${attr}><title>${esc(title)}</title></rect>`;}
   });
  });return out+svg+'</svg>';
 }
 function horizontalBars(rows,series,field){
- const w=800,L=210,R=35,T=16,B=35,group=Math.max(44,series.length*15+18),h=T+B+group*rows.length,pw=w-L-R;
+ const w=640,L=175,R=24,T=12,B=30,group=Math.max(30,series.length*11+12),h=T+B+group*rows.length,pw=w-L-R;
  const values=rows.flatMap(r=>series.map(s=>r[s.key])).filter(v=>v!=null&&Number.isFinite(v));
  if(!values.length)return '<div class="empty">Sin registros disponibles.</div>';
  const low=Math.min(0,...values),high=Math.max(1,...values)*1.08,x=v=>L+(v-low)/(high-low)*pw;
  let svg=`<svg class="chart horizontal-chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(series.map(s=>s.label).join(' y '))}">`;
  for(let i=0;i<=4;i++){const v=low+(high-low)*i/4;svg+=`<path d="M${x(v)} ${T}V${h-B}" stroke="#e9eef2"/><text x="${x(v)}" y="${h-10}" text-anchor="middle">${esc(short(v))}</text>`;}
- rows.forEach((r,i)=>{const label=String(r[field]??'Sin informar'),cy=T+i*group+group/2;svg+=`<text x="${L-12}" y="${cy+4}" text-anchor="end"><title>${esc(label)}</title>${esc(label.length>30?label.slice(0,29)+'…':label)}</text>`;
- series.forEach((s,j)=>{const v=r[s.key];if(v==null)return;svg+=`<rect x="${Math.min(x(0),x(v))}" y="${cy-series.length*7.5+j*15}" width="${Math.max(0,Math.abs(x(v)-x(0)))}" height="12" fill="${s.color}"><title>${esc(label+' · '+s.label+': '+number(v))}</title></rect>`;});});
+ rows.forEach((r,i)=>{const label=String(r[field]??'Sin informar'),cy=T+i*group+group/2;svg+=`<text x="${L-12}" y="${cy+4}" text-anchor="end"><title>${esc(label)}</title>${esc(label.length>25?label.slice(0,24)+'…':label)}</text>`;
+ series.forEach((s,j)=>{const v=r[s.key];if(v==null)return;svg+=`<rect x="${Math.min(x(0),x(v))}" y="${cy-series.length*5.5+j*11}" width="${Math.max(0,Math.abs(x(v)-x(0)))}" height="8" fill="${s.color}"><title>${esc(label+' · '+s.label+': '+number(v))}</title></rect>`;});});
  return '<div class="legend">'+series.map(s=>`<span><i class="dot" style="background:${s.color}"></i>${esc(s.label)}</span>`).join('')+'</div><div class="bar-scroll">'+svg+'</svg></div>';
 }
 function table(rows,columns){tableRows=rows;tableColumns=columns;return `<div class="table-tools"><input id="tableSearch" aria-label="Buscar en la tabla" placeholder="Buscar en el detalle…"><button id="csv">Descargar detalle CSV</button><span id="tableCount"></span></div><div class="table-wrap"><table><thead><tr>${columns.map(c=>`<th>${esc(c[1])}</th>`).join('')}</tr></thead><tbody></tbody></table></div><button id="moreRows">Mostrar más filas</button>`;}
