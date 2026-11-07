@@ -11,9 +11,5 @@
 
 /* Compact charts: scalable SVG, light strokes, readable labels, no padded canvas. */
 .chart{min-height:0;height:auto;max-height:340px}.horizontal-chart{max-height:none;min-width:0!important}.bar-scroll{max-height:380px;overflow-y:auto;overflow-x:hidden}.chart text{font-size:11px}.chart .label{font-size:10px}.chart path{stroke-linejoin:round}.legend{gap:12px;font-size:11px;margin-bottom:6px}.dot{width:6px;height:6px}.panel,.earned-charts .panel{padding:14px;border-radius:10px;box-shadow:none;border:1px solid #e5edf2}.panel h2{font-size:14px;margin-bottom:10px}.grid{gap:14px;margin:14px 0}.panel+.panel{margin-top:14px}.grid>.panel+.panel{margin-top:0}.card{padding:14px;min-height:96px;box-shadow:none}.value{font-size:clamp(19px,1.8vw,25px);margin:10px 0 4px}.note{padding:10px 14px;margin:12px 0}.table-wrap{max-height:320px}td,th{padding:7px 9px}@media(min-width:1001px) and (max-width:1250px){.shell{grid-template-columns:185px minmax(0,1fr)}main{padding:18px}.kpis{gap:10px}}@media(max-width:600px){.chart{max-height:none}.panel{padding:12px}.bar-scroll{max-height:340px}.horizontal-chart text{font-size:14px}.kpis{gap:10px}.card{padding:12px}.table-tools button{font-size:12px}}
-/* Keep chart geometry at presentation scale on wide monitors. */
-.chart{max-width:840px;margin-inline:auto}
-.horizontal-chart{width:100%;max-width:840px;margin-inline:auto}
-.bar-scroll{max-height:420px;scrollbar-gutter:stable}
-@media(min-width:1400px){.panel:has(>.bar-scroll){max-width:1060px;margin-inline:auto}}
-@media(max-width:600px){.horizontal-chart text{font-size:12px}}
+/* Fit data geometry to the actual card width; never scale text or bar thickness. */
+.grid{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.grid>.panel{width:100%;max-width:none;margin-inline:0;justify-self:stretch}.panel{width:100%;max-width:none}.chart-host{width:100%;min-width:0}.chart,.horizontal-chart{display:block;width:100%;max-width:none;min-width:0!important;height:auto;max-height:none;margin:0}.chart text,.horizontal-chart text{font-size:12px}.chart .label{font-size:11px}.bar-scroll{max-height:420px;overflow-y:auto;overflow-x:hidden}.legend{font-size:12px}.panel h2{font-size:15px}.grid>.panel+.panel{margin-top:0}@media(max-width:1000px){.grid{grid-template-columns:1fr}}@media(max-width:600px){.chart text,.horizontal-chart text{font-size:11px}}

@@ -11,34 +11,42 @@ const card=(label,value,sub='')=>`<article class="card"><h2>${esc(label)}</h2><d
 const cards=xs=>'<div class="kpis">'+xs.map(x=>card(...x)).join('')+'</div>';
 const panel=(title,body,wide=false)=>`<section class="panel ${wide?'wide':''}"><h2>${esc(title)}</h2>${body}</section>`;
 const note=t=>`<p class="note">${esc(t)}</p>`;
-function chart(rows,series,{line=false,rate=false,field='month',click=true}={}){
+let chartSpecs=[],chartObserver;
+function chart(rows,series,options={}){const id=chartSpecs.push({rows,series,options})-1;return `<div class="chart-host" data-chart="${id}"></div>`;}
+function mountCharts(){
+ chartObserver?.disconnect();
+ const paint=el=>{const width=Math.max(260,Math.floor(el.getBoundingClientRect().width));if(el.dataset.width===String(width))return;el.dataset.width=width;const spec=chartSpecs[Number(el.dataset.chart)];if(spec)el.innerHTML=drawChart(spec.rows,spec.series,{...spec.options,width});};
+ chartObserver=new ResizeObserver(entries=>entries.forEach(e=>paint(e.target)));
+ document.querySelectorAll('.chart-host').forEach(el=>{paint(el);chartObserver.observe(el);});
+}
+function drawChart(rows,series,{line=false,rate=false,field='month',click=true,width=560}={}){
  if(!rows.length)return '<div class="empty">No hay datos para esta selección.</div>';
- if(!line&&field!=='month')return horizontalBars(rows,series,field);
- const w=560,h=250,L=62,R=16,T=22,B=48,pw=w-L-R,ph=h-T-B,vals=rows.flatMap(r=>series.map(s=>r[s.key])).filter(x=>x!=null&&Number.isFinite(x));
+ if(!line&&field!=='month')return horizontalBars(rows,series,field,width);
+ const w=width,h=290,L=70,R=22,T=24,B=58,pw=w-L-R,ph=h-T-B,vals=rows.flatMap(r=>series.map(s=>r[s.key])).filter(x=>x!=null&&Number.isFinite(x));
  if(!vals.length)return '<div class="empty">Sin registros disponibles.</div>';
  const low=Math.min(0,...vals),high=Math.max(1,...vals),span=high-low,y=v=>T+ph-(v-low)/span*ph,x=i=>L+(i+.5)*pw/rows.length;
  let out='<div class="legend">'+series.map(s=>`<span><i class="dot" style="background:${s.color}"></i>${esc(s.label)}</span>`).join('')+'</div>';
  let svg=`<svg class="chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(series.map(s=>s.label).join(' y '))}">`;
  for(let i=0;i<=4;i++){let v=low+span*i/4,yy=y(v);svg+=`<path d="M${L} ${yy}H${w-R}" stroke="#e9eef2"/><text x="${L-9}" y="${yy+4}" text-anchor="end">${esc(rate?number(v):short(v))}</text>`;}
- const step=Math.max(1,Math.ceil(rows.length/8));
+ const step=Math.max(1,Math.ceil(rows.length/Math.max(3,Math.floor(pw/78))));
  rows.forEach((r,i)=>{if(i%step===0||i===rows.length-1){const txt=field==='month'?monthName(r[field]):r[field];svg+=`<text transform="translate(${x(i)},${h-B+19}) rotate(-30)" text-anchor="end">${esc(String(txt).length>23?String(txt).slice(0,22)+'…':txt)}</text>`;}});
  series.forEach((s,j)=>{
   if(line){let d='',open=false;rows.forEach((r,i)=>{if(r[s.key]==null){open=false;return;}d+=(open?'L':'M')+x(i)+' '+y(r[s.key])+' ';open=true;});svg+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="1.2" vector-effect="non-scaling-stroke"/>`;}
   rows.forEach((r,i)=>{const v=r[s.key];if(v==null)return;const title=`${field==='month'?monthName(r[field]):r[field]} · ${s.label}: ${rate?money(v):number(v)}`;const attr=click&&field==='month'?`data-month="${esc(r[field])}" tabindex="0" role="button" aria-label="Filtrar ${esc(monthName(r[field]))}"`:'';
-   if(line){svg+=`<circle cx="${x(i)}" cy="${y(v)}" r="2" fill="${s.color}" ${attr}><title>${esc(title)}</title></circle>`;if(s.labels&&rows.length<=24)svg+=`<text class="label" x="${x(i)}" y="${y(v)-10}" text-anchor="middle">${number(v)}</text>`;}
+   if(line){svg+=`<circle cx="${x(i)}" cy="${y(v)}" r="2" fill="${s.color}" ${attr}><title>${esc(title)}</title></circle>`;if(s.labels&&rows.length<=Math.floor(pw/65))svg+=`<text class="label" x="${x(i)}" y="${y(v)-10}" text-anchor="middle">${number(v)}</text>`;}
    else{const bw=Math.min(20,pw/rows.length*.68/series.length),xx=x(i)+(j-series.length/2)*bw;svg+=`<rect x="${xx}" y="${Math.min(y(v),y(0))}" width="${bw-1}" height="${Math.max(1,Math.abs(y(0)-y(v)))}" fill="${s.color}" ${attr}><title>${esc(title)}</title></rect>`;}
   });
  });return out+svg+'</svg>';
 }
-function horizontalBars(rows,series,field){
- const w=640,L=175,R=24,T=12,B=30,group=Math.max(30,series.length*11+12),h=T+B+group*rows.length,pw=w-L-R;
+function horizontalBars(rows,series,field,width){
+ const w=width,L=Math.min(200,Math.max(100,w*.28)),R=25,T=14,B=35,group=Math.max(48,series.length*13+16),h=T+B+Math.max(180,group*rows.length),pw=w-L-R;
  const values=rows.flatMap(r=>series.map(s=>r[s.key])).filter(v=>v!=null&&Number.isFinite(v));
  if(!values.length)return '<div class="empty">Sin registros disponibles.</div>';
  const low=Math.min(0,...values),high=Math.max(1,...values)*1.08,x=v=>L+(v-low)/(high-low)*pw;
  let svg=`<svg class="chart horizontal-chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(series.map(s=>s.label).join(' y '))}">`;
  for(let i=0;i<=4;i++){const v=low+(high-low)*i/4;svg+=`<path d="M${x(v)} ${T}V${h-B}" stroke="#e9eef2"/><text x="${x(v)}" y="${h-10}" text-anchor="middle">${esc(short(v))}</text>`;}
- rows.forEach((r,i)=>{const label=String(r[field]??'Sin informar'),cy=T+i*group+group/2;svg+=`<text x="${L-12}" y="${cy+4}" text-anchor="end"><title>${esc(label)}</title>${esc(label.length>25?label.slice(0,24)+'…':label)}</text>`;
- series.forEach((s,j)=>{const v=r[s.key];if(v==null)return;svg+=`<rect x="${Math.min(x(0),x(v))}" y="${cy-series.length*5.5+j*11}" width="${Math.max(0,Math.abs(x(v)-x(0)))}" height="8" fill="${s.color}"><title>${esc(label+' · '+s.label+': '+number(v))}</title></rect>`;});});
+ rows.forEach((r,i)=>{const label=String(r[field]??'Sin informar'),cy=T+i*group+group/2;svg+=`<text x="${L-12}" y="${cy+4}" text-anchor="end"><title>${esc(label)}</title>${esc(label.length>Math.floor((L-15)/6.5)?label.slice(0,Math.floor((L-15)/6.5)-1)+'…':label)}</text>`;
+ series.forEach((s,j)=>{const v=r[s.key];if(v==null)return;svg+=`<rect x="${Math.min(x(0),x(v))}" y="${cy-series.length*6.5+j*13}" width="${Math.max(0,Math.abs(x(v)-x(0)))}" height="10" fill="${s.color}"><title>${esc(label+' · '+s.label+': '+number(v))}</title></rect>`;});});
  return '<div class="legend">'+series.map(s=>`<span><i class="dot" style="background:${s.color}"></i>${esc(s.label)}</span>`).join('')+'</div><div class="bar-scroll">'+svg+'</svg></div>';
 }
 function table(rows,columns){tableRows=rows;tableColumns=columns;return `<div class="table-tools"><input id="tableSearch" aria-label="Buscar en la tabla" placeholder="Buscar en el detalle…"><button id="csv">Descargar detalle CSV</button><span id="tableCount"></span></div><div class="table-wrap"><table><thead><tr>${columns.map(c=>`<th>${esc(c[1])}</th>`).join('')}</tr></thead><tbody></tbody></table></div><button id="moreRows">Mostrar más filas</button>`;}
@@ -73,11 +81,11 @@ function earned(){const f=finance(data,filters,cutoff());const costs=data.costs.
 function subs(){const rows=data.subcontracts.map(r=>({...r,target:r.Expediente*.9,accum:(r.Anterior??r.Septiembre??0)+(r.Octubre||0),remaining:r.Expediente*.9-r.Contratado}));return cards([['Expediente',money(sum(rows,'Expediente'))],['Meta · 90% expediente',money(sum(rows,'target'))],['Contratado',money(sum(rows,'Contratado'))],['Registrado al corte',money(sum(rows,'accum'))]])+note('Acumulado al 31 de octubre de 2026. Meta = 90% del costo presupuestado. Un expediente sin importe no permite evaluar ahorro.')+panel('Comparativo por subcontrato · meta, contratado y registrado',chart(rows,[{key:'target',label:'Meta 90%',color:'#00afa7'},{key:'Contratado',label:'Contratado',color:'#b47c15'},{key:'accum',label:'Registrado',color:'#37474c'}],{field:'Proveedor',click:false}))+panel('Detalle de subcontratos',table(rows,[['Proveedor','Proveedor'],['Trabajo','Trabajo'],['Expediente','Expediente',money],['target','Meta 90%',money],['Contratado','Contratado',money],['accum','Registrado',money],['remaining','Meta − contratado',money]]));}
 function bim(){return `<section class="panel model-panel"><div class="model-toolbar"><h2>Modelo 3D de ${esc(data.title)}</h2><a id="modelFullscreen" target="_blank" rel="noopener" hidden>Abrir visor completo ↗</a></div><p id="modelState" role="status">Buscando el modelo vigente…</p><div id="modelHost"></div></section>`+note('El modelo vigente se carga desde este proyecto. Usa sus filtros de bloques, disciplinas y elementos dentro del visor. Los filtros del informe no modifican el modelo 3D.');}
 async function mountModel(){const project=data.project,current=++modelGeneration;try{const response=await fetch('/api/projects/'+encodeURIComponent(project));if(response.status===401){location.href='/login.html?next='+encodeURIComponent(location.pathname+location.search);return;}const result=await response.json();if(!response.ok)throw Error(result.error||'No se pudo consultar el modelo');if(current!==modelGeneration||page!==1||data?.project!==project)return;const model=[...(result.project.models||[])].sort((a,b)=>String(b.addedAt).localeCompare(String(a.addedAt)))[0];if(!model){$('#modelState').textContent='Este proyecto todavía no tiene un modelo cargado.';return;}const url='/index.html?project='+encodeURIComponent(project)+'&model='+encodeURIComponent(model.id)+'&embed=control';const frame=document.createElement('iframe');frame.title='Modelo 3D · '+data.title;frame.src=url;frame.allow='fullscreen; camera; xr-spatial-tracking';frame.allowFullscreen=true;$('#modelHost').replaceChildren(frame);$('#modelFullscreen').href=url.replace('&embed=control','');$('#modelFullscreen').hidden=false;$('#modelState').textContent=model.name+' · Versión vigente';}catch(e){if(page===1&&$('#modelState'))$('#modelState').textContent=e.message;}}
-function renderContent(){if(!data)return;modelGeneration++;$('#filters').hidden=page===1;$('#cutoff').textContent='CIERRE '+monthName(cutoff()).toUpperCase()+(cutoff()<=data.cutoff?' · DATOS AL CORTE':' · PROGRAMACIÓN');$('#pageTitle').textContent=titles[page];$('#status').textContent='Filtros activos: '+filterKeys().filter(k=>filters[k]?.length).length+' · Pulsa una barra o un punto para seleccionar el mes.';$('#content').innerHTML=page===0?summary():page===1?bim():page===2?planning():[3,7,8].includes(page)?resources():[4,5,6].includes(page)?labor():page===9?earned():subs();
+function renderContent(){if(!data)return;chartObserver?.disconnect();chartSpecs=[];modelGeneration++;$('#filters').hidden=page===1;$('#cutoff').textContent='CIERRE '+monthName(cutoff()).toUpperCase()+(cutoff()<=data.cutoff?' · DATOS AL CORTE':' · PROGRAMACIÓN');$('#pageTitle').textContent=titles[page];$('#status').textContent='Filtros activos: '+filterKeys().filter(k=>filters[k]?.length).length+' · Pulsa una barra o un punto para seleccionar el mes.';$('#content').innerHTML=page===0?summary():page===1?bim():page===2?planning():[3,7,8].includes(page)?resources():[4,5,6].includes(page)?labor():page===9?earned():subs();
  $('#source').textContent='Fuente: datos locales de los informes Power BI, recursos APU y resúmenes de planillas. Datos preparados: '+data.updated.replace('T',' ')+'. Para incorporar nuevos archivos se requiere volver a sincronizar el panel.';
  $('#content').onclick=e=>{const target=e.target.closest('[data-month]');if(target){filters.month=[target.dataset.month];render();}if(e.target.id==='csv')exportCSV();};
  $('#content').onkeydown=e=>{if((e.key==='Enter'||e.key===' ')&&e.target.dataset.month){e.preventDefault();filters.month=[e.target.dataset.month];render();}};
- if(page===1)mountModel();updateTable();const search=$('#tableSearch');if(search)search.oninput=()=>updateTable();
+ if(page===1)mountModel();mountCharts();updateTable();const search=$('#tableSearch');if(search)search.oninput=()=>updateTable();
 }
 function exportCSV(){if(!tableRows.length)return;const keys=Object.keys(tableRows[0]);const cell=x=>'"'+String(x??'').replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';const csv='\ufeff'+[keys,...tableRows.map(r=>keys.map(k=>r[k]))].map(r=>r.map(cell).join(';')).join('\r\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download=data.key+'-'+page+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
 function render(){drawFilters();renderContent();$('#pages').innerHTML=titles.map((t,i)=>`<button data-page="${i}" class="${i===page?'active':''}" ${i===page?'aria-current="page"':''}>${String(i+1).padStart(2,'0')} · ${esc(t)}</button>`).join('');}
