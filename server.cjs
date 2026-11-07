@@ -29,7 +29,7 @@ const server = http.createServer(async (req,res) => {
   if (!file.startsWith(root + path.sep)) { res.writeHead(403); return res.end(); }
   fs.stat(file,(err,stat) => {
     if (err || !stat.isFile()) { res.writeHead(404); return res.end('No encontrado'); }
-    res.writeHead(200, {'Content-Type':mime[path.extname(file)] || 'text/plain; charset=utf-8', 'Content-Length':stat.size, 'X-Content-Type-Options':'nosniff', 'Cache-Control':'no-store', 'Permissions-Policy':'camera=(self), xr-spatial-tracking=(self)', 'X-Frame-Options':'DENY', 'Content-Security-Policy':"default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"});
+    res.writeHead(200, {'Content-Type':mime[path.extname(file)] || 'text/plain; charset=utf-8', 'Content-Length':stat.size, 'X-Content-Type-Options':'nosniff', 'Cache-Control':'no-store', 'Permissions-Policy':'camera=(self), xr-spatial-tracking=(self)', 'X-Frame-Options':pathname==='/index.html'?'SAMEORIGIN':'DENY', 'Content-Security-Policy':"default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-src 'self'; frame-ancestors "+(pathname==='/index.html'?"'self'":"'none'")+"; form-action 'self' "});
     if (req.method === 'HEAD') return res.end();
     const stream = fs.createReadStream(file); stream.on('error',()=>res.destroy()); stream.pipe(res);
   });
