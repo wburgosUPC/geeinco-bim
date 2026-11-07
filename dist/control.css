@@ -3,3 +3,8 @@
 .import-label{font-size:12px;max-width:220px}.import-label input{max-width:210px;font-size:11px}
 
 [hidden]{display:none!important}.project-tabs{display:flex;gap:7px;flex-wrap:wrap}.project-tabs button{padding:12px 18px;border:1px solid #d8e1e8;font-weight:600}.project-tabs button.active{background:#173f54;color:white;border-bottom:3px solid #d7ae55}header{gap:16px}.model-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px}.model-toolbar h2{margin:0}.model-panel{margin-top:18px;padding:14px}#modelHost iframe{display:block;border:0;width:100%;height:75vh;min-height:540px;border-radius:8px}#modelState{font-size:12px;color:#647e90}@media(max-width:700px){.project-tabs{width:100%}.project-tabs button{flex:1}#modelHost iframe{height:70vh;min-height:450px}.model-toolbar{align-items:start;flex-direction:column}}
+
+/* Consistent Power BI-style comparison charts and financial pages. */
+.bar-scroll{max-height:520px;overflow:auto}.horizontal-chart{min-height:0;width:100%;min-width:560px}.earned-kpis .kpis{grid-template-columns:repeat(4,minmax(0,1fr))}.earned-kpis .value{font-size:clamp(18px,1.7vw,25px)}.earned-charts .panel{padding:20px}.panel+.panel{margin-top:18px}.chart rect{shape-rendering:crispEdges}.table-tools{flex-wrap:wrap}.table-tools input{min-width:180px;flex:1;max-width:350px}@media(max-width:800px){.earned-kpis .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.horizontal-chart{min-width:0}.value{overflow-wrap:normal}@media(max-width:600px){.horizontal-chart{min-width:520px}}
+.grid>.panel+.panel{margin-top:0}.chart text{font-size:12px}.chart .label{font-size:11px}
