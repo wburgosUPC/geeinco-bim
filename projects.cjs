@@ -18,7 +18,7 @@ exports.createProjects=function(root=dataPath('datos','proyectos'),onModelSaved=
   try{
    if(url.pathname==='/api/projects'){
     if(req.method==='GET'){
-     const entries=fs.existsSync(root)?fs.readdirSync(root).filter(id=>ID.test(id)):[];
+     const entries=fs.existsSync(root)?fs.readdirSync(root).filter(id=>ID.test(id)&&(!req.auth||req.auth.role==='admin'||req.auth.projects.includes(id))):[];
      const projects=entries.map(id=>{const p=read(id);return {id:p.id,name:p.name,createdAt:p.createdAt,updatedAt:p.updatedAt,modelCount:p.models.length,bytes:p.models.reduce((sum,m)=>sum+m.size,0)};}).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
      return json(200,{projects});
     }
