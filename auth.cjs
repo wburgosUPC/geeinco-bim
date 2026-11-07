@@ -46,7 +46,7 @@ exports.createAuth=function(dataDir=dataPath('cuenta')){
    }
    if(new Set(['/GEEINCO-BIM-Revit-2027.zip','/login.html','/auth.js','/auth.css','/portal.css','/portal.js','/geeincobim-logo.svg']).has(route)&&['GET','HEAD'].includes(req.method))return false;
    if(authenticated)return false;
-   if(route==='/'||route==='/index.html'||route==='/projects.html'){res.writeHead(302,{Location:'/login.html?next='+encodeURIComponent(req.url),'Cache-Control':'no-store'});res.end();return true;}
+   if(route==='/'||route==='/index.html'||route==='/projects.html'||route==='/control.html'){res.writeHead(302,{Location:'/login.html?next='+encodeURIComponent(req.url),'Cache-Control':'no-store'});res.end();return true;}
    return json(401,{error:'Inicia sesión para acceder al visor.'});
   }catch{return json(500,{error:'No se pudo acceder a la cuenta local. Consulta las instrucciones.'});}
  }};

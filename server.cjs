@@ -7,8 +7,9 @@ const { spawn } = require('node:child_process');
 const {createAuth} = require('./auth.cjs');
 const {createProjects} = require('./projects.cjs');
 const root = path.join(__dirname, 'dist');
-const mime = { '.zip':'application/zip', '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.wasm':'application/wasm', '.ifc':'application/octet-stream', '.svg':'image/svg+xml' };
+const mime = { '.mjs':'text/javascript; charset=utf-8', '.zip':'application/zip', '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.wasm':'application/wasm', '.ifc':'application/octet-stream', '.svg':'image/svg+xml' };
 const auth = createAuth();
+const control=require('./control-data.cjs').createControl();
 const planning=require('./planning.cjs').createPlanning();
 const {createPowerBI}=require('./powerbi.cjs');
 const powerbi=createPowerBI();
@@ -17,6 +18,7 @@ powerbi.resume();
 const server = http.createServer(async (req,res) => {
   if (await powerbi.publicHandle(req,res,server.address().port)) return;
   if (await auth.handle(req,res,server.address().port)) return;
+  if (await control.handle(req,res)) return;
   if (await powerbi.handle(req,res,server.address().port)) return;
   if (await planning.handle(req,res,server.address().port)) return;
   if (await projects.handle(req,res,server.address().port)) return;
