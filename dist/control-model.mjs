@@ -27,3 +27,17 @@ export function finance(data,f,cut){
  const approved=!f.component?.length&&!f.specialty?.length?data.approvedGross?.find(r=>r.month===cut):null;
  return {parts,budget,ev,pv,gross:approved?.accum??(closures.length?moneyRound(gross):null),periodGross:approved?.period??(closures.length?moneyRound(periodGross):null),bac:sum(parts,'Presupuesto'),total:sum(budget,'Total'),spi:divide(ev,pv),sv:ev!=null&&pv!=null?ev-pv:null};
 }
+
+export function forecast(data,f={},cut=data.cutoff){
+ const component='II · Plan de contingencia';
+ const comparable=!f.specialty?.length && (data.key==='simon' ? (!f.component?.length || f.component.length===1&&f.component[0]===component) : !f.component?.length);
+ const scope=data.key==='simon'?'Plan de contingencia':'Total de obra';
+ const scoped=data.key==='simon'?{...f,component:[component]}:f;
+ const fin=finance(data,scoped,cut);
+ const records=data.costs.filter(r=>r.Tipo==='Operativo'&&r.Fecha.slice(0,7)<=cut);
+ const ac=comparable&&cut<=data.cutoff&&records.length?sum(records,'Base'):null;
+ const bac=comparable?fin.bac:null,ev=comparable?fin.ev:null;
+ const cpi=ac>0&&ev>0?ev/ac:null;
+ const eac=bac>0&&ev>0&&ev<=bac&&cpi>0?ac+(bac-ev)/cpi:null;
+ return {scope,bac,ev,ac,cpi,eac,variance:eac==null?null:eac-bac};
+}
